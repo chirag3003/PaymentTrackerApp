@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -28,7 +29,7 @@ fun PaymentTrackerNavHost(
         startDestination = Route.HomeGraph,
         modifier = modifier
     ) {
-        homeGraph(innerPadding)
+        homeGraph(innerPadding, navController)
         transactionsGraph(innerPadding)
         analysisGraph(innerPadding)
         settingsGraph(innerPadding)
@@ -38,13 +39,14 @@ fun PaymentTrackerNavHost(
 /**
  * Home feature navigation graph
  */
-private fun NavGraphBuilder.homeGraph(innerPadding: PaddingValues) {
+private fun NavGraphBuilder.homeGraph(innerPadding: PaddingValues, navController: NavHostController) {
     navigation<Route.HomeGraph>(
         startDestination = HomeRoute.Home
     ) {
         composable<HomeRoute.Home> {
             HomeScreen(
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier.padding(innerPadding),
+                navController = navController
             )
         }
     }

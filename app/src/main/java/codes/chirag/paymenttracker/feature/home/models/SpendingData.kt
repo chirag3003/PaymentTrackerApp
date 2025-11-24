@@ -49,5 +49,35 @@ data class SpendingSummary(
      * Check if spending increased compared to last month
      */
     val isIncrease: Boolean
-        get() = percentageChange > 0
+        get() = totalSpent > lastMonthSpent
 }
+
+/**
+ * Enum representing the type of transaction
+ */
+enum class TransactionType {
+    INCOME,
+    EXPENSE
+}
+
+/**
+ * Data class representing a single transaction
+ * @param id Unique identifier for the transaction
+ * @param title Name or description of the transaction
+ * @param amount Amount of money involved
+ * @param type Type of transaction (income or expense)
+ * @param category Category of the transaction
+ * @param date Date of the transaction
+ * @param icon Optional icon name for the transaction category
+ */
+data class Transaction(
+    val id: String,
+    val title: String,
+    val amount: Double,
+    val type: TransactionType,
+    val category: String,
+    val date: String, // Format: "MMM dd, yyyy"
+    val icon: String? = null,
+    val color: Color? = null
+)
+
