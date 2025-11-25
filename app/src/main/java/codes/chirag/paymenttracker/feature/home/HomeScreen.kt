@@ -128,10 +128,15 @@ fun HomeScreen(
         RecentTransactionsSection(
             transactions = recentTransactions,
             onSeeAllClick = {
-                navController.navigate(BottomNavDestination.TRANSACTIONS.route){
-                    popUpTo(navController.graph.startDestinationId) {
+                navController.navigate(BottomNavDestination.TRANSACTIONS.route) {
+                    // Pop up to home graph to avoid building up a large stack
+                    popUpTo(BottomNavDestination.HOME.route) {
                         saveState = true
                     }
+                    // Avoid multiple copies of the same destination
+                    launchSingleTop = true
+                    // Restore state when reselecting a previously selected item
+                    restoreState = true
                 }
             }
         )

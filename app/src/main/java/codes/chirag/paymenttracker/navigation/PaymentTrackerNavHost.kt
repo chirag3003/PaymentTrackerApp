@@ -1,7 +1,9 @@
 package codes.chirag.paymenttracker.navigation
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavController
@@ -27,7 +29,7 @@ fun PaymentTrackerNavHost(
     NavHost(
         navController = navController,
         startDestination = Route.HomeGraph,
-        modifier = modifier
+        modifier = modifier.navigationBarsPadding().statusBarsPadding()
     ) {
         homeGraph(innerPadding, navController)
         transactionsGraph(innerPadding)
