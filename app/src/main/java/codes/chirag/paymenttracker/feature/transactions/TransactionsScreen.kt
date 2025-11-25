@@ -15,7 +15,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import codes.chirag.paymenttracker.feature.home.models.Transaction
 import codes.chirag.paymenttracker.feature.transactions.components.SearchBar
 import codes.chirag.paymenttracker.feature.transactions.components.TransactionList
 import codes.chirag.paymenttracker.feature.transactions.utils.getSampleTransactions
@@ -23,10 +22,12 @@ import codes.chirag.paymenttracker.feature.transactions.utils.getSampleTransacti
 /**
  * Transactions screen displaying all user transactions with search functionality
  *
+ * @param onTransactionClick Callback when a transaction is clicked with transaction ID
  * @param modifier Optional modifier for styling
  */
 @Composable
 fun TransactionsScreen(
+    onTransactionClick: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Setting up scroll
@@ -55,34 +56,31 @@ fun TransactionsScreen(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-            .verticalScroll(state = scrollState)
             .then(modifier),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Search bar
+        // Search bar - fixed at top
         SearchBar(
             query = searchQuery,
             onQueryChange = { searchQuery = it },
-            modifier = Modifier.padding(vertical = 8.dp)
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
         )
 
-        // Transaction list
-        TransactionList(
-            transactions = filteredTransactions,
-            onTransactionClick = { transaction ->
-                // TODO: Navigate to transaction detail screen
-                // or show bottom sheet with transaction details
-            }
-        )
+        // Transaction list - scrollable
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .verticalScroll(state = scrollState),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            TransactionList(
+                transactions = filteredTransactions,
+                onTransactionClick = { transaction ->
+                    onTransactionClick(transaction.id)
+                }
+            )
+        }
     }
-}
-
-/**
- * Handle transaction click
- * TODO: Implement navigation to transaction detail or show bottom sheet
- */
-private fun handleTransactionClick(transaction: Transaction) {
-    // Implementation will be added when detail screen is created
 }
 

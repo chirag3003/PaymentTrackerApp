@@ -31,6 +31,9 @@ sealed interface HomeRoute {
 sealed interface TransactionsRoute {
     @Serializable
     data object TransactionsList : TransactionsRoute
+
+    @Serializable
+    data class TransactionDetails(val transactionId: String) : TransactionsRoute
 }
 
 // Analysis feature routes
