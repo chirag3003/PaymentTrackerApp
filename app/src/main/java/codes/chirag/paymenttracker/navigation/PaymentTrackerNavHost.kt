@@ -16,6 +16,7 @@ import androidx.navigation.toRoute
 import codes.chirag.paymenttracker.feature.analysis.AnalysisScreen
 import codes.chirag.paymenttracker.feature.home.HomeScreen
 import codes.chirag.paymenttracker.feature.settings.SettingsScreen
+import codes.chirag.paymenttracker.feature.transactions.EditTransactionScreen
 import codes.chirag.paymenttracker.feature.transactions.TransactionDetailsScreen
 import codes.chirag.paymenttracker.feature.transactions.TransactionsScreen
 
@@ -77,7 +78,28 @@ private fun NavGraphBuilder.transactionsGraph(innerPadding: PaddingValues, navCo
             TransactionDetailsScreen(
                 transactionId = args.transactionId,
                 onNavigateBack = { navController.navigateUp() },
-                onEdit = { /* TODO: Navigate to edit screen */ }
+                onEdit = {
+                    navController.navigate(TransactionsRoute.EditTransaction(args.transactionId))
+                }
+            )
+        }
+
+        composable<TransactionsRoute.EditTransaction> { backStackEntry ->
+            val args = backStackEntry.toRoute<TransactionsRoute.EditTransaction>()
+            EditTransactionScreen(
+                transactionId = args.transactionId,
+                onNavigateBack = { navController.navigateUp() },
+                onSave = { transaction ->
+                    // TODO: Save transaction through ViewModel
+                    navController.navigateUp()
+                },
+                onDelete = {
+                    // TODO: Delete transaction through ViewModel
+                    navController.popBackStack(
+                        route = TransactionsRoute.TransactionsList,
+                        inclusive = false
+                    )
+                }
             )
         }
     }
