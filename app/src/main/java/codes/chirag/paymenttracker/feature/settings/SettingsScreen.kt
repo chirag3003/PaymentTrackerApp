@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -12,24 +13,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.AttachMoney
-import androidx.compose.material.icons.filled.Category
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.CreditCard
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.Fingerprint
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.Upload
-import androidx.compose.material.icons.filled.Warning
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.outlined.AccountCircle
+import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.CurrencyRupee
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Receipt
+import androidx.compose.material.icons.outlined.Upload
+import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -43,394 +42,324 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import codes.chirag.paymenttracker.ui.theme.Background
+import codes.chirag.paymenttracker.ui.theme.BorderColor
+import codes.chirag.paymenttracker.ui.theme.DividerColor
+import codes.chirag.paymenttracker.ui.theme.OnBackground
+import codes.chirag.paymenttracker.ui.theme.OnPrimary
+import codes.chirag.paymenttracker.ui.theme.OnSurfaceMuted
+import codes.chirag.paymenttracker.ui.theme.OrangePrimary
+import codes.chirag.paymenttracker.ui.theme.OrangeSubtle
+import codes.chirag.paymenttracker.ui.theme.SurfaceL1
+import codes.chirag.paymenttracker.ui.theme.SurfaceL3
 
-/**
- * Settings Screen
- * Displays app settings organized into sections: Account, Preferences, Notifications, and Data
- *
- * @param modifier Optional modifier for styling
- */
 @Composable
-fun SettingsScreen(
-    modifier: Modifier = Modifier
-) {
-    val scrollState = rememberScrollState()
-
-    // Settings state
-    var isDarkMode by remember { mutableStateOf(true) }
+fun SettingsScreen(modifier: Modifier = Modifier) {
     var pushNotifications by remember { mutableStateOf(true) }
-    var billReminders by remember { mutableStateOf(true) }
-    var budgetAlerts by remember { mutableStateOf(false) }
-    var securityLock by remember { mutableStateOf(false) }
+    var billReminders     by remember { mutableStateOf(true) }
+    var budgetAlerts      by remember { mutableStateOf(false) }
+    var securityLock      by remember { mutableStateOf(false) }
 
-    Column(
+    LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp)
-            .padding(bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+            .background(Background),
+        contentPadding = PaddingValues(bottom = 32.dp)
     ) {
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // ACCOUNT Section
-        SettingsSection(
-            title = "ACCOUNT",
-            items = listOf(
-                SettingItem.Clickable(
-                    icon = Icons.Default.AccountCircle,
-                    title = "Profile Information",
-                    onClick = { /* TODO: Navigate to profile */ }
-                ),
-                SettingItem.Clickable(
-                    icon = Icons.Default.CreditCard,
-                    title = "Subscription",
-                    onClick = { /* TODO: Navigate to subscription */ }
-                )
-            )
-        )
-
-        // PREFERENCES Section
-        SettingsSection(
-            title = "PREFERENCES",
-            items = listOf(
-                SettingItem.Toggle(
-                    icon = Icons.Default.DarkMode,
-                    title = "Dark Mode",
-                    isChecked = isDarkMode,
-                    onCheckedChange = { isDarkMode = it }
-                ),
-                SettingItem.ClickableWithValue(
-                    icon = Icons.Default.AttachMoney,
-                    title = "Currency",
-                    value = "USD",
-                    onClick = { /* TODO: Show currency picker */ }
-                ),
-                SettingItem.Clickable(
-                    icon = Icons.Default.Category,
-                    title = "Manage Categories",
-                    onClick = { /* TODO: Navigate to categories */ }
-                ),
-                SettingItem.Toggle(
-                    icon = Icons.Default.Fingerprint,
-                    title = "Security Lock",
-                    isChecked = securityLock,
-                    onCheckedChange = { securityLock = it }
-                )
-            )
-        )
-
-        // NOTIFICATIONS Section
-        SettingsSection(
-            title = "NOTIFICATIONS",
-            items = listOf(
-                SettingItem.Toggle(
-                    icon = Icons.Default.Notifications,
-                    title = "Push Notifications",
-                    isChecked = pushNotifications,
-                    onCheckedChange = { pushNotifications = it }
-                ),
-                SettingItem.Toggle(
-                    icon = Icons.Default.Receipt,
-                    title = "Bill Reminders",
-                    isChecked = billReminders,
-                    onCheckedChange = { billReminders = it }
-                ),
-                SettingItem.Toggle(
-                    icon = Icons.Default.Warning,
-                    title = "Budget Alerts",
-                    isChecked = budgetAlerts,
-                    onCheckedChange = { budgetAlerts = it }
-                )
-            )
-        )
-
-        // DATA Section
-        SettingsSection(
-            title = "DATA",
-            items = listOf(
-                SettingItem.Clickable(
-                    icon = Icons.Default.Upload,
-                    title = "Export Data",
-                    onClick = { /* TODO: Export data */ }
-                ),
-                SettingItem.Clickable(
-                    icon = Icons.Default.Download,
-                    title = "Import Data",
-                    onClick = { /* TODO: Import data */ }
-                )
-            )
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Log Out Button
-        Button(
-            onClick = { /* TODO: Handle logout */ },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(56.dp),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFEF5350)
-            )
-        ) {
+        item {
             Text(
-                text = "Log Out",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                text = "Settings",
+                style = MaterialTheme.typography.headlineSmall,
+                color = OnBackground,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-    }
-}
-
-/**
- * Settings section with title and items
- */
-@Composable
-private fun SettingsSection(
-    title: String,
-    items: List<SettingItem>,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        // Section Title
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            fontSize = 13.sp,
-            modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-        )
-
-        // Section Items
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surface),
-            verticalArrangement = Arrangement.spacedBy(0.dp)
-        ) {
-            items.forEachIndexed { index, item ->
-                when (item) {
-                    is SettingItem.Clickable -> {
-                        ClickableSettingItem(
-                            icon = item.icon,
-                            title = item.title,
-                            onClick = item.onClick
-                        )
-                    }
-                    is SettingItem.ClickableWithValue -> {
-                        ClickableSettingItemWithValue(
-                            icon = item.icon,
-                            title = item.title,
-                            value = item.value,
-                            onClick = item.onClick
-                        )
-                    }
-                    is SettingItem.Toggle -> {
-                        ToggleSettingItem(
-                            icon = item.icon,
-                            title = item.title,
-                            isChecked = item.isChecked,
-                            onCheckedChange = item.onCheckedChange
-                        )
-                    }
-                }
-
-                // Divider between items (except last item)
-                if (index < items.size - 1) {
+        // Profile card
+        item {
+            Box(
+                modifier = Modifier
+                    .padding(horizontal = 20.dp)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(SurfaceL1)
+                    .clickable { }
+                    .padding(16.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(1.dp)
-                            .padding(start = 72.dp)
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                            .size(52.dp)
+                            .clip(CircleShape)
+                            .background(OrangeSubtle),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "C",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = OrangePrimary
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Chirag",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = OnBackground
+                        )
+                        Text(
+                            text = "chirag@example.com",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = OnSurfaceMuted
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Outlined.ChevronRight,
+                        contentDescription = null,
+                        tint = OnSurfaceMuted,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(24.dp))
+        }
+
+        // Preferences section
+        item {
+            SettingsSectionHeader("Preferences")
+            SettingsSectionCard {
+                SettingRowNavigation(
+                    icon = Icons.Outlined.CurrencyRupee,
+                    label = "Currency",
+                    value = "INR (₹)",
+                    onClick = {}
+                )
+                SettingsDivider()
+                SettingRowNavigation(
+                    icon = Icons.Outlined.Category,
+                    label = "Manage Categories",
+                    onClick = {}
+                )
+                SettingsDivider()
+                SettingRowNavigation(
+                    icon = Icons.Outlined.Receipt,
+                    label = "Monthly Budget",
+                    value = "₹30,000",
+                    onClick = {}
+                )
+                SettingsDivider()
+                SettingRowToggle(
+                    icon = Icons.Outlined.Fingerprint,
+                    label = "Security Lock",
+                    checked = securityLock,
+                    onCheckedChange = { securityLock = it }
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Notifications section
+        item {
+            SettingsSectionHeader("Notifications")
+            SettingsSectionCard {
+                SettingRowToggle(
+                    icon = Icons.Outlined.Notifications,
+                    label = "Push Notifications",
+                    checked = pushNotifications,
+                    onCheckedChange = { pushNotifications = it }
+                )
+                SettingsDivider()
+                SettingRowToggle(
+                    icon = Icons.Outlined.Receipt,
+                    label = "Bill Reminders",
+                    checked = billReminders,
+                    onCheckedChange = { billReminders = it }
+                )
+                SettingsDivider()
+                SettingRowToggle(
+                    icon = Icons.Outlined.Warning,
+                    label = "Budget Alerts",
+                    checked = budgetAlerts,
+                    onCheckedChange = { budgetAlerts = it }
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // Data section
+        item {
+            SettingsSectionHeader("Data")
+            SettingsSectionCard {
+                SettingRowNavigation(
+                    icon = Icons.Outlined.Upload,
+                    label = "Export Data",
+                    onClick = {}
+                )
+                SettingsDivider()
+                SettingRowNavigation(
+                    icon = Icons.Outlined.Download,
+                    label = "Import Data",
+                    onClick = {}
+                )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // About section
+        item {
+            SettingsSectionHeader("About")
+            SettingsSectionCard {
+                SettingRowNavigation(
+                    icon = Icons.Outlined.Info,
+                    label = "App Version",
+                    value = "1.0.0",
+                    onClick = {}
+                )
+                SettingsDivider()
+                SettingRowNavigation(
+                    icon = Icons.Outlined.AccountCircle,
+                    label = "Privacy Policy",
+                    onClick = {}
+                )
+            }
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }
 
-/**
- * Clickable setting item with icon and title
- */
+// ── Helper composables ────────────────────────────────────────────────────────
+
 @Composable
-private fun ClickableSettingItem(
-    icon: ImageVector,
-    title: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier
+private fun SettingsSectionHeader(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.labelMedium,
+        color = OnSurfaceMuted,
+        modifier = Modifier.padding(start = 24.dp, bottom = 8.dp)
+    )
+}
+
+@Composable
+private fun SettingsSectionCard(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .padding(horizontal = 20.dp)
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .background(SurfaceL1)
     ) {
-        // Icon
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            modifier = Modifier.size(24.dp)
-        )
-
-        // Title
-        Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-
-        // Chevron
-        Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = "Navigate",
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-            modifier = Modifier.size(24.dp)
-        )
+        Column { content() }
     }
 }
 
-/**
- * Clickable setting item with icon, title, and value
- */
 @Composable
-private fun ClickableSettingItemWithValue(
+private fun SettingsDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = 56.dp),
+        color = DividerColor,
+        thickness = 0.5.dp
+    )
+}
+
+@Composable
+private fun SettingRowNavigation(
     icon: ImageVector,
-    title: String,
-    value: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    label: String,
+    value: String? = null,
+    onClick: () -> Unit
 ) {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Icon
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            modifier = Modifier.size(24.dp)
-        )
-
-        // Title
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(SurfaceL3),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = OnSurfaceMuted,
+                modifier = Modifier.size(18.dp)
+            )
+        }
         Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-
-        // Value
-        Text(
-            text = value,
+            text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            color = OnBackground,
+            modifier = Modifier.weight(1f)
         )
-
-        // Chevron
+        if (value != null) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelMedium,
+                color = OnSurfaceMuted
+            )
+        }
         Icon(
-            imageVector = Icons.Default.ChevronRight,
-            contentDescription = "Navigate",
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
-            modifier = Modifier.size(24.dp)
+            imageVector = Icons.Outlined.ChevronRight,
+            contentDescription = null,
+            tint = OnSurfaceMuted,
+            modifier = Modifier.size(18.dp)
         )
     }
 }
 
-/**
- * Toggle setting item with icon, title, and switch
- */
 @Composable
-private fun ToggleSettingItem(
+private fun SettingRowToggle(
     icon: ImageVector,
-    title: String,
-    isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    modifier: Modifier = Modifier
+    label: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Icon
-        Icon(
-            imageVector = icon,
-            contentDescription = title,
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-            modifier = Modifier.size(24.dp)
-        )
-
-        // Title
+        Box(
+            modifier = Modifier
+                .size(34.dp)
+                .clip(CircleShape)
+                .background(SurfaceL3),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = OnSurfaceMuted,
+                modifier = Modifier.size(18.dp)
+            )
+        }
         Text(
-            text = title,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = OnBackground,
             modifier = Modifier.weight(1f)
         )
-
-        // Switch
         Switch(
-            checked = isChecked,
+            checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                checkedThumbColor = OnPrimary,
+                checkedTrackColor = OrangePrimary,
+                uncheckedThumbColor = OnSurfaceMuted,
+                uncheckedTrackColor = SurfaceL3,
+                uncheckedBorderColor = BorderColor
             )
         )
     }
 }
-
-/**
- * Sealed class representing different types of setting items
- */
-private sealed class SettingItem {
-    data class Clickable(
-        val icon: ImageVector,
-        val title: String,
-        val onClick: () -> Unit
-    ) : SettingItem()
-
-    data class ClickableWithValue(
-        val icon: ImageVector,
-        val title: String,
-        val value: String,
-        val onClick: () -> Unit
-    ) : SettingItem()
-
-    data class Toggle(
-        val icon: ImageVector,
-        val title: String,
-        val isChecked: Boolean,
-        val onCheckedChange: (Boolean) -> Unit
-    ) : SettingItem()
-}
-

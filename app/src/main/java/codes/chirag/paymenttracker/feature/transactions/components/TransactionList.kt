@@ -16,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import codes.chirag.paymenttracker.feature.home.models.Transaction
+import codes.chirag.paymenttracker.core.model.Transaction
 
 /**
  * Grouped transaction list component

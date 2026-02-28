@@ -9,17 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Fastfood
-import androidx.compose.material.icons.filled.LocalGroceryStore
-import androidx.compose.material.icons.filled.MovieFilter
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.Subscriptions
-import androidx.compose.material.icons.filled.Train
-import androidx.compose.material.icons.filled.Work
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,135 +17,70 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import codes.chirag.paymenttracker.feature.home.formatCurrency
-import codes.chirag.paymenttracker.feature.home.models.Transaction
-import codes.chirag.paymenttracker.feature.home.models.TransactionType
+import codes.chirag.paymenttracker.core.model.Transaction
+import codes.chirag.paymenttracker.core.model.TransactionType
+import codes.chirag.paymenttracker.core.utils.formatCurrency
+import codes.chirag.paymenttracker.core.utils.getCategoryMeta
+import codes.chirag.paymenttracker.ui.theme.ExpenseRed
+import codes.chirag.paymenttracker.ui.theme.IncomeGreen
+import codes.chirag.paymenttracker.ui.theme.OnBackground
+import codes.chirag.paymenttracker.ui.theme.OnSurfaceMuted
 
-/**
- * Individual transaction item component for transaction list
- *
- * @param transaction Transaction data to display
- * @param onClick Callback when transaction item is clicked
- * @param modifier Optional modifier for styling
- */
 @Composable
 fun TransactionListItem(
     transaction: Transaction,
     onClick: (Transaction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val meta = getCategoryMeta(transaction.category)
+    val amountColor  = if (transaction.type == TransactionType.INCOME) IncomeGreen else ExpenseRed
+    val amountPrefix = if (transaction.type == TransactionType.INCOME) "+" else "-"
+
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick(transaction) },
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
-        )
+            .clickable { onClick(transaction) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .size(46.dp)
+                .clip(CircleShape)
+                .background(meta.color.copy(alpha = 0.15f)),
+            contentAlignment = Alignment.Center
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f)
-            ) {
-                // Category Icon
-                TransactionIcon(
-                    category = transaction.category,
-                    color = transaction.color ?: MaterialTheme.colorScheme.primary
-                )
-
-                // Title and time
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = transaction.title,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = transaction.date,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                        fontSize = 12.sp
-                    )
-                }
-            }
-
-            // Amount
-            Text(
-                text = when (transaction.type) {
-                    TransactionType.INCOME -> "+${formatCurrency(transaction.amount)}"
-                    TransactionType.EXPENSE -> "-${formatCurrency(transaction.amount)}"
-                },
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Bold,
-                color = when (transaction.type) {
-                    TransactionType.INCOME -> Color(0xFF4CAF50)
-                    TransactionType.EXPENSE -> Color(0xFFEF5350)
-                },
-                fontSize = 16.sp
+            Icon(
+                imageVector = meta.icon,
+                contentDescription = null,
+                tint = meta.color,
+                modifier = Modifier.size(22.dp)
             )
         }
-    }
-}
-
-/**
- * Icon component for transaction category
- */
-@Composable
-private fun TransactionIcon(
-    category: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    val iconVector = getIconForCategory(category)
-
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(color.copy(alpha = 0.15f)),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            imageVector = iconVector,
-            contentDescription = category,
-            tint = color,
-            modifier = Modifier.size(24.dp)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Text(
+                text = transaction.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = OnBackground,
+                maxLines = 1
+            )
+            Text(
+                text = transaction.category + if (transaction.paymentMethod.name.isNotEmpty())
+                    " · ${transaction.paymentMethod.name}" else "",
+                style = MaterialTheme.typography.labelSmall,
+                color = OnSurfaceMuted,
+                maxLines = 1
+            )
+        }
+        Text(
+            text = "$amountPrefix${formatCurrency(transaction.amount)}",
+            style = MaterialTheme.typography.titleSmall,
+            color = amountColor
         )
     }
 }
-
-/**
- * Get Material Icon based on category
- */
-private fun getIconForCategory(category: String): ImageVector {
-    return when (category.lowercase()) {
-        "food", "dining" -> Icons.Default.Fastfood
-        "transport", "travel" -> Icons.Default.Train
-        "shopping" -> Icons.Default.ShoppingBag
-        "groceries" -> Icons.Default.LocalGroceryStore
-        "entertainment" -> Icons.Default.MovieFilter
-        "subscription" -> Icons.Default.Subscriptions
-        "salary", "income" -> Icons.Default.Work
-        else -> Icons.Default.ShoppingBag
-    }
-}
-

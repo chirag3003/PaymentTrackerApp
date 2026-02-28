@@ -18,16 +18,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AccountBalance
-import androidx.compose.material.icons.filled.CalendarToday
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Fastfood
-import androidx.compose.material.icons.filled.LocalGroceryStore
-import androidx.compose.material.icons.filled.MovieFilter
-import androidx.compose.material.icons.filled.ShoppingBag
-import androidx.compose.material.icons.filled.Subscriptions
-import androidx.compose.material.icons.filled.Train
-import androidx.compose.material.icons.filled.Work
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,19 +47,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import codes.chirag.paymenttracker.feature.home.models.Transaction
+import codes.chirag.paymenttracker.core.model.Transaction
+import codes.chirag.paymenttracker.core.utils.getCategoryMeta
+import codes.chirag.paymenttracker.feature.transactions.utils.getSampleTransactions
+import codes.chirag.paymenttracker.ui.theme.ExpenseRed
 
-/**
- * Edit Transaction Screen
- * Allows editing of transaction details
- *
- * @param transactionId The ID of the transaction to edit
- * @param onNavigateBack Callback when back button is pressed
- * @param onSave Callback when save button is pressed
- * @param onDelete Callback when delete button is pressed
- * @param modifier Optional modifier for styling
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditTransactionScreen(
@@ -78,16 +62,13 @@ fun EditTransactionScreen(
     modifier: Modifier = Modifier
 ) {
     // TODO: Replace with actual data from ViewModel/Repository
-    val transaction = codes.chirag.paymenttracker.feature.transactions.utils.getSampleTransactions()
+    val transaction = getSampleTransactions()
         .find { it.id == transactionId } ?: return
 
-    val scrollState = rememberScrollState()
-
-    // State for editable fields
-    var amount by remember { mutableStateOf(transaction.amount.toString()) }
+    var amount   by remember { mutableStateOf(transaction.amount.toString()) }
     var category by remember { mutableStateOf(transaction.category) }
-    var date by remember { mutableStateOf(transaction.date) }
-    var notes by remember { mutableStateOf("") }
+    var date     by remember { mutableStateOf(transaction.date) }
+    var notes    by remember { mutableStateOf(transaction.notes) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -119,7 +100,7 @@ fun EditTransactionScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .verticalScroll(scrollState)
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(bottom = 48.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -127,31 +108,24 @@ fun EditTransactionScreen(
         ) {
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Amount Input Section
-            AmountInputSection(
-                amount = amount,
-                onAmountChange = { amount = it }
-            )
+            AmountInputSection(amount = amount, onAmountChange = { amount = it })
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Editable Fields
             EditableFieldsList(
                 category = category,
                 date = date,
                 notes = notes,
                 onCategoryClick = { /* TODO: Show category picker */ },
                 onDateClick = { /* TODO: Show date picker */ },
-                onAccountClick = { /* TODO: Show account picker */ },
                 onNotesChange = { notes = it }
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Action Buttons
             ActionButtons(
                 onSave = {
-                    // TODO: Create updated transaction and save
+                    // TODO: Persist updated transaction via ViewModel
                     onNavigateBack()
                 },
                 onDelete = {
@@ -165,9 +139,6 @@ fun EditTransactionScreen(
     }
 }
 
-/**
- * Amount input section with dollar sign
- */
 @Composable
 private fun AmountInputSection(
     amount: String,
@@ -181,31 +152,26 @@ private fun AmountInputSection(
     ) {
         Text(
             text = "Amount",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            fontSize = 14.sp
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Box(modifier = modifier.fillMaxWidth()){
+        Box(modifier = Modifier.fillMaxWidth()) {
             Text(
                 text = "₹",
                 style = MaterialTheme.typography.displayMedium,
                 fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 48.sp,
-                modifier=modifier.align(Alignment.CenterStart)
+                modifier = Modifier.align(Alignment.CenterStart)
             )
-
-
             Row(
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                                OutlinedTextField(
+                OutlinedTextField(
                     value = amount,
                     onValueChange = onAmountChange,
                     textStyle = MaterialTheme.typography.displayMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 48.sp,
                         textAlign = TextAlign.Center
                     ),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -222,13 +188,9 @@ private fun AmountInputSection(
                 )
             }
         }
-
     }
 }
 
-/**
- * List of editable fields
- */
 @Composable
 private fun EditableFieldsList(
     category: String,
@@ -236,43 +198,33 @@ private fun EditableFieldsList(
     notes: String,
     onCategoryClick: () -> Unit,
     onDateClick: () -> Unit,
-    onAccountClick: () -> Unit,
     onNotesChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val categoryMeta = getCategoryMeta(category)
+
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Category
         EditableFieldItem(
-            icon = getCategoryIcon(category),
-            iconColor = MaterialTheme.colorScheme.primary,
+            icon = categoryMeta.icon,
+            iconColor = categoryMeta.color,
             label = "Category",
             value = category,
             onClick = onCategoryClick
         )
-
-        // Date
         EditableFieldItem(
-            icon = Icons.Default.CalendarToday,
+            icon = Icons.Outlined.CalendarToday,
             iconColor = MaterialTheme.colorScheme.primary,
             label = "Date",
             value = date,
             onClick = onDateClick
         )
-
-        // Notes
-        NotesField(
-            notes = notes,
-            onNotesChange = onNotesChange
-        )
+        NotesField(notes = notes, onNotesChange = onNotesChange)
     }
 }
 
-/**
- * Individual editable field item (clickable)
- */
 @Composable
 private fun EditableFieldItem(
     icon: ImageVector,
@@ -292,7 +244,6 @@ private fun EditableFieldItem(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Icon
         Box(
             modifier = Modifier
                 .size(48.dp)
@@ -307,40 +258,31 @@ private fun EditableFieldItem(
                 modifier = Modifier.size(24.dp)
             )
         }
-
-        // Label and Value
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                fontSize = 12.sp
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 16.sp
+                color = MaterialTheme.colorScheme.onSurface
             )
         }
-
-        // Chevron
         Icon(
-            imageVector = Icons.Default.ChevronRight,
+            imageVector = Icons.Outlined.ChevronRight,
             contentDescription = "Edit",
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp)
         )
     }
 }
 
-/**
- * Notes text field
- */
 @Composable
 private fun NotesField(
     notes: String,
@@ -353,19 +295,17 @@ private fun NotesField(
     ) {
         Text(
             text = "Notes",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 4.dp)
         )
-
         OutlinedTextField(
             value = notes,
             onValueChange = onNotesChange,
             placeholder = {
                 Text(
                     text = "Add notes...",
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             modifier = Modifier
@@ -383,9 +323,6 @@ private fun NotesField(
     }
 }
 
-/**
- * Save and Delete action buttons
- */
 @Composable
 private fun ActionButtons(
     onSave: () -> Unit,
@@ -396,59 +333,33 @@ private fun ActionButtons(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Save Button
         Button(
             onClick = onSave,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary
-            )
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
         ) {
             Text(
                 text = "Save Changes",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                fontWeight = FontWeight.Bold
             )
         }
-
-        // Delete Button
         TextButton(
             onClick = onDelete,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp),
             shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.textButtonColors(
-                contentColor = Color(0xFFEF5350)
-            )
+            colors = ButtonDefaults.textButtonColors(contentColor = ExpenseRed)
         ) {
             Text(
                 text = "Delete Transaction",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                fontWeight = FontWeight.Bold
             )
         }
     }
 }
-
-/**
- * Get icon for transaction category
- */
-private fun getCategoryIcon(category: String): ImageVector {
-    return when (category.lowercase()) {
-        "food", "dining" -> Icons.Default.Fastfood
-        "transport", "travel" -> Icons.Default.Train
-        "shopping" -> Icons.Default.ShoppingBag
-        "groceries" -> Icons.Default.LocalGroceryStore
-        "entertainment" -> Icons.Default.MovieFilter
-        "subscription" -> Icons.Default.Subscriptions
-        "salary", "income" -> Icons.Default.Work
-        else -> Icons.Default.ShoppingBag
-    }
-}
-

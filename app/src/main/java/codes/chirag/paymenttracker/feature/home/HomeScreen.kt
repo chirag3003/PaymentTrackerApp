@@ -1,145 +1,103 @@
 package codes.chirag.paymenttracker.feature.home
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import codes.chirag.paymenttracker.feature.home.components.GreetingSection
+import codes.chirag.paymenttracker.core.model.CategorySpending
+import codes.chirag.paymenttracker.feature.home.components.CategoryBudgetSection
+import codes.chirag.paymenttracker.feature.home.components.DailyBudgetWidget
+import codes.chirag.paymenttracker.feature.home.components.HeroBalanceCard
+import codes.chirag.paymenttracker.feature.home.components.HomeTopBar
 import codes.chirag.paymenttracker.feature.home.components.RecentTransactionsSection
-import codes.chirag.paymenttracker.feature.home.components.SpendingSection
-import codes.chirag.paymenttracker.feature.home.components.TotalBalanceCard
-import codes.chirag.paymenttracker.feature.home.models.CategorySpending
-import codes.chirag.paymenttracker.feature.home.models.SpendingSummary
-import codes.chirag.paymenttracker.feature.home.models.Transaction
-import codes.chirag.paymenttracker.feature.home.models.TransactionType
-import codes.chirag.paymenttracker.navigation.BottomNavDestination
+import codes.chirag.paymenttracker.feature.home.components.SpendingBarChart
+import codes.chirag.paymenttracker.feature.home.components.WeeklyBarData
+import codes.chirag.paymenttracker.feature.transactions.utils.getSampleTransactions
+import codes.chirag.paymenttracker.navigation.Route
+
+// ── Sample data (UI prototype; replaced by ViewModel in data-layer phase) ──────
+private val sampleCategorySpending = listOf(
+    CategorySpending(category = "Food",          amount = 2840.0,  budget = 4000.0),
+    CategorySpending(category = "Transport",     amount = 1200.0,  budget = 2000.0),
+    CategorySpending(category = "Shopping",      amount = 3800.0,  budget = 3000.0), // over budget
+    CategorySpending(category = "Entertainment", amount = 1100.0,  budget = 2000.0),
+    CategorySpending(category = "Groceries",     amount = 2200.0,  budget = 3000.0),
+    CategorySpending(category = "Subscription",  amount = 768.0,   budget = 1000.0)
+)
+
+private val sampleWeeklyData = listOf(
+    WeeklyBarData("Mon", 540.0),
+    WeeklyBarData("Tue", 1200.0),
+    WeeklyBarData("Wed", 320.0),
+    WeeklyBarData("Thu", 890.0),
+    WeeklyBarData("Fri", 2100.0),
+    WeeklyBarData("Sat", 1480.0),
+    WeeklyBarData("Sun", 380.0)
+)
 
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
     navController: NavHostController
 ) {
-    val scrollState = rememberScrollState()
+    val transactions = getSampleTransactions().take(5)
 
-    // Sample data for spending
-    val spendingSummary = SpendingSummary(
-        totalSpent = 850.00,
-        lastMonthSpent = 800.00,
-        categoryBreakdown = listOf(
-            CategorySpending(
-                category = "Food",
-                amount = 320.00,
-                maxAmount = 500.00,
-                color = Color(0xFF4CAF50)
-            ),
-            CategorySpending(
-                category = "Transport",
-                amount = 150.00,
-                maxAmount = 300.00,
-                color = Color(0xFF2196F3)
-            ),
-            CategorySpending(
-                category = "Shopping",
-                amount = 280.00,
-                maxAmount = 400.00,
-                color = Color(0xFFFF9800)
-            ),
-            CategorySpending(
-                category = "Entertainment",
-                amount = 100.00,
-                maxAmount = 200.00,
-                color = Color(0xFF9C27B0)
-            )
-        )
-    )
-
-    // Sample data for recent transactions
-    val recentTransactions = listOf(
-        Transaction(
-            id = "1",
-            title = "Netflix Subscription",
-            amount = 15.99,
-            type = TransactionType.EXPENSE,
-            category = "Subscription",
-            date = "Oct 28, 2023",
-            color = Color(0xFFE53935)
-        ),
-        Transaction(
-            id = "2",
-            title = "Monthly Salary",
-            amount = 2500.00,
-            type = TransactionType.INCOME,
-            category = "Salary",
-            date = "Oct 27, 2023",
-            color = Color(0xFF4CAF50)
-        ),
-        Transaction(
-            id = "3",
-            title = "Starbucks",
-            amount = 5.50,
-            type = TransactionType.EXPENSE,
-            category = "Food",
-            date = "Oct 26, 2023",
-            color = Color(0xFFFF9800)
-        ),
-        Transaction(
-            id = "4",
-            title = "Uber",
-            amount = 12.30,
-            type = TransactionType.EXPENSE,
-            category = "Transport",
-            date = "Oct 25, 2023",
-            color = Color(0xFF2196F3)
-        ),
-        Transaction(
-            id = "5",
-            title = "Amazon Purchase",
-            amount = 45.99,
-            type = TransactionType.EXPENSE,
-            category = "Shopping",
-            date = "Oct 24, 2023",
-            color = Color(0xFF9C27B0)
-        )
-    )
-
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(space = 20.dp)
+    LazyColumn(
+        modifier = modifier.fillMaxSize()
     ) {
-        GreetingSection()
-        TotalBalanceCard(
-            totalBalance = 1234.56,
-            income = 2500.00,
-            expenses = 1265.44
-        )
-        SpendingSection(
-            spendingSummary = spendingSummary
-        )
-        RecentTransactionsSection(
-            transactions = recentTransactions,
-            onSeeAllClick = {
-                navController.navigate(BottomNavDestination.TRANSACTIONS.route) {
-                    // Pop up to home graph to avoid building up a large stack
-                    popUpTo(BottomNavDestination.HOME.route) {
-                        saveState = true
+        item {
+            HomeTopBar(
+                userName = "Chirag",
+                onNotificationsClick = {}
+            )
+        }
+        item {
+            HeroBalanceCard(
+                balance = 42_350.0,
+                monthlyIncome = 23_000.0,
+                monthlyExpense = 11_796.0,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
+        item { Spacer(modifier = Modifier.height(16.dp)) }
+        item {
+            DailyBudgetWidget(
+                safeToSpend = 620.0,
+                dailyBudget = 1000.0,
+                spentToday = 380.0,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
+        item { Spacer(modifier = Modifier.height(24.dp)) }
+        item {
+            CategoryBudgetSection(
+                categories = sampleCategorySpending
+            )
+        }
+        item { Spacer(modifier = Modifier.height(24.dp)) }
+        item {
+            SpendingBarChart(
+                weeklyData = sampleWeeklyData,
+                modifier = Modifier.padding(horizontal = 20.dp)
+            )
+        }
+        item { Spacer(modifier = Modifier.height(24.dp)) }
+        item {
+            RecentTransactionsSection(
+                transactions = transactions,
+                onSeeAllClick = {
+                    navController.navigate(Route.TransactionsGraph) {
+                        launchSingleTop = true
                     }
-                    // Avoid multiple copies of the same destination
-                    launchSingleTop = true
-                    // Restore state when reselecting a previously selected item
-                    restoreState = true
-                }
-            }
-        )
+                },
+                onTransactionClick = { /* no-op for now */ }
+            )
+        }
+        item { Spacer(modifier = Modifier.height(24.dp)) }
     }
 }
-

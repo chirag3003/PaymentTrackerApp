@@ -13,30 +13,57 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import androidx.navigation.toRoute
-import codes.chirag.paymenttracker.feature.analysis.AnalysisScreen
+import codes.chirag.paymenttracker.feature.goals.GoalsScreen
 import codes.chirag.paymenttracker.feature.home.HomeScreen
+import codes.chirag.paymenttracker.feature.onboarding.OnboardingScreen
 import codes.chirag.paymenttracker.feature.settings.SettingsScreen
 import codes.chirag.paymenttracker.feature.transactions.EditTransactionScreen
 import codes.chirag.paymenttracker.feature.transactions.TransactionDetailsScreen
 import codes.chirag.paymenttracker.feature.transactions.TransactionsScreen
 
 /**
- * Main navigation host with nested graphs for each bottom nav item
+ * Main navigation host.
+ *
+ * @param showOnboarding  When true the graph starts at [OnboardingGraph] and
+ *                        navigates to [Route.HomeGraph] once the user completes
+ *                        onboarding. When false it starts directly at [Route.HomeGraph].
+ * @param onOnboardingComplete  Called with (name, budget, method) so the host
+ *                              can persist the flag and data.
  */
 @Composable
 fun PaymentTrackerNavHost(
     navController: NavHostController,
     innerPadding: PaddingValues,
+    showOnboarding: Boolean,
+    onOnboardingComplete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val start: Any = if (showOnboarding) OnboardingGraph else Route.HomeGraph
+
     NavHost(
         navController = navController,
-        startDestination = Route.HomeGraph,
+        startDestination = start,
         modifier = modifier.navigationBarsPadding().statusBarsPadding()
     ) {
+        // Onboarding graph (only reachable on first launch)
+        navigation<OnboardingGraph>(
+            startDestination = OnboardingRoute.Onboarding
+        ) {
+            composable<OnboardingRoute.Onboarding> {
+                OnboardingScreen(
+                    onComplete = { _, _, _ ->
+                        onOnboardingComplete()
+                        navController.navigate(Route.HomeGraph) {
+                            popUpTo(OnboardingGraph) { inclusive = true }
+                        }
+                    }
+                )
+            }
+        }
+
         homeGraph(innerPadding, navController)
         transactionsGraph(innerPadding, navController)
-        analysisGraph(innerPadding)
+        goalsGraph(innerPadding)
         settingsGraph(innerPadding)
     }
 }
@@ -89,7 +116,7 @@ private fun NavGraphBuilder.transactionsGraph(innerPadding: PaddingValues, navCo
             EditTransactionScreen(
                 transactionId = args.transactionId,
                 onNavigateBack = { navController.navigateUp() },
-                onSave = { transaction ->
+                onSave = { _ ->
                     // TODO: Save transaction through ViewModel
                     navController.navigateUp()
                 },
@@ -106,14 +133,14 @@ private fun NavGraphBuilder.transactionsGraph(innerPadding: PaddingValues, navCo
 }
 
 /**
- * Analysis feature navigation graph
+ * Goals feature navigation graph
  */
-private fun NavGraphBuilder.analysisGraph(innerPadding: PaddingValues) {
-    navigation<Route.AnalysisGraph>(
-        startDestination = AnalysisRoute.AnalysisHome
+private fun NavGraphBuilder.goalsGraph(innerPadding: PaddingValues) {
+    navigation<Route.GoalsGraph>(
+        startDestination = GoalsRoute.GoalsList
     ) {
-        composable<AnalysisRoute.AnalysisHome> {
-            AnalysisScreen(
+        composable<GoalsRoute.GoalsList> {
+            GoalsScreen(
                 modifier = Modifier.padding(innerPadding)
             )
         }
@@ -134,4 +161,3 @@ private fun NavGraphBuilder.settingsGraph(innerPadding: PaddingValues) {
         }
     }
 }
-
