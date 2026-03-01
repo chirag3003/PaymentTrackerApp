@@ -149,8 +149,7 @@ private fun NavGraphBuilder.transactionsGraph(
                 onNavigateBack = { navController.navigateUp() },
                 onEdit = {
                     navController.navigate(TransactionsRoute.EditTransaction(args.transactionId))
-                },
-                modifier = Modifier.padding(innerPadding)
+                }
             )
         }
 
@@ -173,8 +172,7 @@ private fun NavGraphBuilder.transactionsGraph(
                         route = TransactionsRoute.TransactionsList,
                         inclusive = false
                     )
-                },
-                modifier = Modifier.padding(innerPadding)
+                }
             )
         }
     }

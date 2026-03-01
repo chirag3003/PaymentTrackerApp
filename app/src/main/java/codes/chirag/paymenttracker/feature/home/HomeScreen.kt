@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import codes.chirag.paymenttracker.feature.home.components.CategoryBudgetSection
 import codes.chirag.paymenttracker.feature.home.components.DailyBudgetWidget
 import codes.chirag.paymenttracker.feature.home.components.HeroBalanceCard
@@ -82,9 +83,13 @@ fun HomeScreen(
                     }
                 },
                 onTransactionClick = { id ->
-                    // Switch to Transactions graph first so the tab becomes active,
-                    // then push the detail screen on top of it.
+                    // Navigate into the Transactions graph and push the detail screen.
+                    // Using navigate(TransactionsGraph) first ensures the graph is
+                    // initialised (so getBackStackEntry works), then push the detail.
                     navController.navigate(Route.TransactionsGraph) {
+                        popUpTo(navController.graph.findStartDestination().id) {
+                            saveState = true
+                        }
                         launchSingleTop = true
                         restoreState = true
                     }
