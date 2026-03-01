@@ -51,8 +51,9 @@ fun HomeTopBar(
                     .background(OrangeSubtle),
                 contentAlignment = Alignment.Center
             ) {
+                val displayName = userName.ifBlank { "there" }
                 Text(
-                    text = userName.first().uppercaseChar().toString(),
+                    text = displayName.first().uppercaseChar().toString(),
                     style = MaterialTheme.typography.titleMedium,
                     color = OrangePrimary
                 )
@@ -64,7 +65,7 @@ fun HomeTopBar(
                     color = OnSurfaceMuted
                 )
                 Text(
-                    text = userName,
+                    text = userName.ifBlank { "there" },
                     style = MaterialTheme.typography.titleSmall,
                     color = OnBackground
                 )

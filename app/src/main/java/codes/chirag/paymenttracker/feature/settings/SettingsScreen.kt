@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Category
@@ -28,13 +29,17 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -43,7 +48,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import codes.chirag.paymenttracker.BuildConfig
 import codes.chirag.paymenttracker.ui.theme.Background
 import codes.chirag.paymenttracker.ui.theme.BorderColor
 import codes.chirag.paymenttracker.ui.theme.DividerColor
@@ -56,11 +64,54 @@ import codes.chirag.paymenttracker.ui.theme.SurfaceL1
 import codes.chirag.paymenttracker.ui.theme.SurfaceL3
 
 @Composable
-fun SettingsScreen(modifier: Modifier = Modifier) {
-    var pushNotifications by remember { mutableStateOf(true) }
-    var billReminders     by remember { mutableStateOf(true) }
-    var budgetAlerts      by remember { mutableStateOf(false) }
-    var securityLock      by remember { mutableStateOf(false) }
+fun SettingsScreen(
+    viewModel: SettingsViewModel,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val profile by viewModel.profile.collectAsState()
+
+    val userName = profile?.name?.ifBlank { "User" } ?: "User"
+    val monthlyBudget = profile?.monthlyBudget ?: ""
+    val budgetDisplay = if (monthlyBudget.isBlank()) "Not set" else "₹$monthlyBudget"
+    val nameInitial = userName.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
+
+    // Toggle states — initialized from SharedPreferences via ViewModel
+    var pushNotifications by remember { mutableStateOf(viewModel.getPushNotifications()) }
+    var billReminders by remember { mutableStateOf(viewModel.getBillReminders()) }
+    var budgetAlerts by remember { mutableStateOf(viewModel.getBudgetAlerts()) }
+    var securityLock by remember { mutableStateOf(false) }
+
+    // Dialog state
+    var showBudgetDialog by remember { mutableStateOf(false) }
+    var budgetInput by remember { mutableStateOf("") }
+
+    if (showBudgetDialog) {
+        AlertDialog(
+            onDismissRequest = { showBudgetDialog = false },
+            title = { Text("Monthly Budget") },
+            text = {
+                OutlinedTextField(
+                    value = budgetInput,
+                    onValueChange = { budgetInput = it },
+                    label = { Text("Amount (₹)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (budgetInput.isNotBlank()) {
+                        viewModel.updateBudget(budgetInput.trim())
+                    }
+                    showBudgetDialog = false
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBudgetDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     LazyColumn(
         modifier = modifier
@@ -100,19 +151,19 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "C",
+                            text = nameInitial,
                             style = MaterialTheme.typography.headlineSmall,
                             color = OrangePrimary
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Chirag",
+                            text = userName,
                             style = MaterialTheme.typography.titleMedium,
                             color = OnBackground
                         )
                         Text(
-                            text = "chirag@example.com",
+                            text = "Monthly budget: $budgetDisplay",
                             style = MaterialTheme.typography.bodySmall,
                             color = OnSurfaceMuted
                         )
@@ -148,8 +199,11 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 SettingRowNavigation(
                     icon = Icons.Outlined.Receipt,
                     label = "Monthly Budget",
-                    value = "₹30,000",
-                    onClick = {}
+                    value = budgetDisplay,
+                    onClick = {
+                        budgetInput = monthlyBudget
+                        showBudgetDialog = true
+                    }
                 )
                 SettingsDivider()
                 SettingRowToggle(
@@ -170,21 +224,30 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                     icon = Icons.Outlined.Notifications,
                     label = "Push Notifications",
                     checked = pushNotifications,
-                    onCheckedChange = { pushNotifications = it }
+                    onCheckedChange = {
+                        pushNotifications = it
+                        viewModel.setToggle("push_notifs", it)
+                    }
                 )
                 SettingsDivider()
                 SettingRowToggle(
                     icon = Icons.Outlined.Receipt,
                     label = "Bill Reminders",
                     checked = billReminders,
-                    onCheckedChange = { billReminders = it }
+                    onCheckedChange = {
+                        billReminders = it
+                        viewModel.setToggle("bill_reminders", it)
+                    }
                 )
                 SettingsDivider()
                 SettingRowToggle(
                     icon = Icons.Outlined.Warning,
                     label = "Budget Alerts",
                     checked = budgetAlerts,
-                    onCheckedChange = { budgetAlerts = it }
+                    onCheckedChange = {
+                        budgetAlerts = it
+                        viewModel.setToggle("budget_alerts", it)
+                    }
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
@@ -197,7 +260,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 SettingRowNavigation(
                     icon = Icons.Outlined.Upload,
                     label = "Export Data",
-                    onClick = {}
+                    onClick = { viewModel.exportCsv(context) }
                 )
                 SettingsDivider()
                 SettingRowNavigation(
@@ -216,7 +279,7 @@ fun SettingsScreen(modifier: Modifier = Modifier) {
                 SettingRowNavigation(
                     icon = Icons.Outlined.Info,
                     label = "App Version",
-                    value = "1.0.0",
+                    value = BuildConfig.VERSION_NAME,
                     onClick = {}
                 )
                 SettingsDivider()

@@ -1,7 +1,6 @@
 package codes.chirag.paymenttracker.feature.goals
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -41,9 +40,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -73,19 +72,15 @@ import codes.chirag.paymenttracker.ui.theme.SurfaceL1
 import codes.chirag.paymenttracker.ui.theme.SurfaceL3
 import kotlinx.coroutines.launch
 
-// ── Sample data ───────────────────────────────────────────────────────────────
-private val sampleGoals = listOf(
-    Goal(id = "1", name = "New Phone",    targetAmount = 25000.0, savedAmount = 14500.0, targetDate = "Jun 2026"),
-    Goal(id = "2", name = "Goa Trip",     targetAmount = 18000.0, savedAmount = 6200.0,  targetDate = "Apr 2026"),
-    Goal(id = "3", name = "Laptop Fund",  targetAmount = 60000.0, savedAmount = 22000.0, targetDate = "Dec 2026"),
-    Goal(id = "4", name = "Emergency Fund", targetAmount = 50000.0, savedAmount = 50000.0, targetDate = ""),
-    Goal(id = "5", name = "Books & Notes", targetAmount = 5000.0, savedAmount = 3400.0, targetDate = "Mar 2026")
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GoalsScreen(modifier: Modifier = Modifier) {
-    val goals = remember { sampleGoals }
+fun GoalsScreen(
+    viewModel: GoalViewModel,
+    contentPadding: PaddingValues = PaddingValues(),
+    modifier: Modifier = Modifier,
+    onGoalClick: (String) -> Unit = {}
+) {
+    val goals by viewModel.goals.collectAsState()
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
@@ -108,12 +103,15 @@ fun GoalsScreen(modifier: Modifier = Modifier) {
                 Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Goal")
             }
         }
-    ) { innerPadding ->
+    ) { _ ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 80.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = contentPadding.calculateTopPadding(),
+                bottom = contentPadding.calculateBottomPadding() + 80.dp,
+                start = 0.dp,
+                end = 0.dp
+            )
         ) {
             item {
                 Text(
@@ -150,6 +148,7 @@ fun GoalsScreen(modifier: Modifier = Modifier) {
             items(goals, key = { it.id }) { goal ->
                 GoalCard(
                     goal = goal,
+                    onClick = { onGoalClick(goal.id) },
                     modifier = Modifier.padding(horizontal = 20.dp)
                 )
                 Spacer(modifier = Modifier.height(12.dp))
@@ -165,8 +164,8 @@ fun GoalsScreen(modifier: Modifier = Modifier) {
                     showAddSheet = false
                 }
             },
-            onSave = { _, _, _ ->
-                // TODO: persist via ViewModel
+            onSave = { name, target, targetDate ->
+                viewModel.addGoal(name, target, targetDate)
                 scope.launch { sheetState.hide() }.invokeOnCompletion {
                     showAddSheet = false
                 }
@@ -272,7 +271,7 @@ private fun StatChip(label: String, value: String, valueColor: Color = OrangePri
 // ── Goal Card ─────────────────────────────────────────────────────────────────
 
 @Composable
-private fun GoalCard(goal: Goal, modifier: Modifier = Modifier) {
+private fun GoalCard(goal: Goal, onClick: () -> Unit = {}, modifier: Modifier = Modifier) {
     val progressColor = if (goal.isCompleted) IncomeGreen else OrangePrimary
 
     Box(
@@ -280,6 +279,7 @@ private fun GoalCard(goal: Goal, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(20.dp))
             .background(SurfaceL1)
+            .clickable { onClick() }
             .padding(16.dp)
     ) {
         Column {

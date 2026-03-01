@@ -34,10 +34,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -47,10 +46,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import codes.chirag.paymenttracker.core.model.Transaction
+import codes.chirag.paymenttracker.core.model.TransactionType
 import codes.chirag.paymenttracker.core.utils.formatCurrency
 import codes.chirag.paymenttracker.feature.transactions.components.AddTransactionBottomSheet
 import codes.chirag.paymenttracker.feature.transactions.components.TransactionListItem
-import codes.chirag.paymenttracker.feature.transactions.utils.getSampleTransactions
 import codes.chirag.paymenttracker.ui.theme.Background
 import codes.chirag.paymenttracker.ui.theme.BorderColor
 import codes.chirag.paymenttracker.ui.theme.DividerColor
@@ -64,44 +63,24 @@ import codes.chirag.paymenttracker.ui.theme.SurfaceL1
 import codes.chirag.paymenttracker.ui.theme.SurfaceL3
 import kotlinx.coroutines.launch
 
-private enum class DateFilter(val label: String) {
-    ALL("All"), TODAY("Today"), WEEK("This Week"), MONTH("This Month")
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsScreen(
+    viewModel: TransactionViewModel,
     onTransactionClick: (String) -> Unit = {},
+    contentPadding: PaddingValues = PaddingValues(),
     modifier: Modifier = Modifier
 ) {
-    val allTransactions = remember { getSampleTransactions() }
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    var selectedFilter by rememberSaveable { mutableStateOf(DateFilter.ALL) }
+    val filtered by viewModel.filtered.collectAsState()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val activeFilter by viewModel.activeFilter.collectAsState()
+
     var showAddSheet by rememberSaveable { mutableStateOf(false) }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val scope = rememberCoroutineScope()
 
-    val filtered by remember(searchQuery, selectedFilter, allTransactions) {
-        derivedStateOf {
-            allTransactions.filter { tx ->
-                val matchesSearch = searchQuery.isBlank() ||
-                    tx.title.contains(searchQuery, ignoreCase = true) ||
-                    tx.category.contains(searchQuery, ignoreCase = true)
-                val matchesFilter = when (selectedFilter) {
-                    DateFilter.ALL   -> true
-                    DateFilter.TODAY -> tx.date == "Today"
-                    DateFilter.WEEK  -> tx.date in listOf("Today", "Yesterday", "Feb 26, 2026", "Feb 25, 2026")
-                    DateFilter.MONTH -> true // all sample data is from this month
-                }
-                matchesSearch && matchesFilter
-            }
-        }
-    }
-
     // Group transactions by date
-    val grouped by remember(filtered) {
-        derivedStateOf { filtered.groupBy { it.date } }
-    }
+    val grouped = filtered.groupBy { it.date }
 
     Scaffold(
         modifier = modifier,
@@ -117,12 +96,15 @@ fun TransactionsScreen(
                 Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Transaction")
             }
         }
-    ) { innerPadding ->
+    ) { _ ->
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(bottom = 80.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                top = contentPadding.calculateTopPadding(),
+                bottom = contentPadding.calculateBottomPadding() + 80.dp,
+                start = 0.dp,
+                end = 0.dp
+            )
         ) {
             // Title
             item {
@@ -138,7 +120,7 @@ fun TransactionsScreen(
             item {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = { searchQuery = it },
+                    onValueChange = { viewModel.searchQuery.value = it },
                     placeholder = { Text("Search transactions...", color = OnSurfaceMuted) },
                     leadingIcon = {
                         Icon(
@@ -176,8 +158,8 @@ fun TransactionsScreen(
                 ) {
                     items(DateFilter.entries) { filter ->
                         FilterChip(
-                            selected = selectedFilter == filter,
-                            onClick = { selectedFilter = filter },
+                            selected = activeFilter == filter,
+                            onClick = { viewModel.activeFilter.value = filter },
                             label = { Text(filter.label) },
                             colors = FilterChipDefaults.filterChipColors(
                                 selectedContainerColor = OrangePrimary,
@@ -187,7 +169,7 @@ fun TransactionsScreen(
                             ),
                             border = FilterChipDefaults.filterChipBorder(
                                 enabled = true,
-                                selected = selectedFilter == filter,
+                                selected = activeFilter == filter,
                                 borderColor = DividerColor,
                                 selectedBorderColor = OrangePrimary
                             )
@@ -262,7 +244,7 @@ fun TransactionsScreen(
                 }
             },
             onSave = { title, amount, type, category, paymentMethod, notes ->
-                // TODO: persist via ViewModel
+                viewModel.add(title, amount, type, category, paymentMethod, notes)
                 scope.launch { sheetState.hide() }.invokeOnCompletion {
                     showAddSheet = false
                 }
@@ -278,8 +260,7 @@ private fun DateGroupHeader(
     modifier: Modifier = Modifier
 ) {
     val dayTotal = transactions.sumOf { tx ->
-        if (tx.type == codes.chirag.paymenttracker.core.model.TransactionType.INCOME)
-            tx.amount else -tx.amount
+        if (tx.type == TransactionType.INCOME) tx.amount else -tx.amount
     }
     val totalColor = if (dayTotal >= 0) IncomeGreen else ExpenseRed
     val prefix = if (dayTotal >= 0) "+" else ""

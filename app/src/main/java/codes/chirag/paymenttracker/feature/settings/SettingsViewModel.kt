@@ -1,0 +1,132 @@
+package codes.chirag.paymenttracker.feature.settings
+
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.core.app.ShareCompat
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
+import codes.chirag.paymenttracker.PREFS_NAME
+import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
+import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
+import codes.chirag.paymenttracker.core.database.entities.UserProfileEntity
+import codes.chirag.paymenttracker.core.model.Transaction
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class SettingsViewModel(
+    private val profileRepo: UserProfileRepository,
+    private val txRepo: TransactionRepository,
+    private val prefs: SharedPreferences
+) : ViewModel() {
+
+    // ── Profile ───────────────────────────────────────────────────────────────
+
+    val profile: StateFlow<UserProfileEntity?> = profileRepo.profile
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    // ── All transactions (for CSV export) ────────────────────────────────────
+
+    val allTransactions: StateFlow<List<Transaction>> = txRepo.allTransactions
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    // ── Profile mutations ─────────────────────────────────────────────────────
+
+    fun updateName(name: String) {
+        viewModelScope.launch {
+            val current = profile.value
+            profileRepo.save(
+                name            = name,
+                monthlyBudget   = current?.monthlyBudget ?: "",
+                preferredMethod = current?.preferredMethod ?: ""
+            )
+        }
+    }
+
+    fun updateBudget(budget: String) {
+        viewModelScope.launch {
+            val current = profile.value
+            profileRepo.save(
+                name            = current?.name ?: "",
+                monthlyBudget   = budget,
+                preferredMethod = current?.preferredMethod ?: ""
+            )
+        }
+    }
+
+    // ── Notification toggles (SharedPreferences) ──────────────────────────────
+
+    fun getPushNotifications(): Boolean = prefs.getBoolean("push_notifs", true)
+    fun getBillReminders(): Boolean = prefs.getBoolean("bill_reminders", true)
+    fun getBudgetAlerts(): Boolean = prefs.getBoolean("budget_alerts", false)
+
+    fun setToggle(key: String, value: Boolean) {
+        prefs.edit().putBoolean(key, value).apply()
+    }
+
+    // ── Custom categories (SharedPreferences CSV) ─────────────────────────────
+
+    fun getCustomCategories(): List<String> {
+        val csv = prefs.getString("custom_categories", "") ?: ""
+        return if (csv.isBlank()) emptyList()
+               else csv.split(",").map { it.trim() }.filter { it.isNotBlank() }
+    }
+
+    fun saveCustomCategories(categories: List<String>) {
+        prefs.edit().putString("custom_categories", categories.joinToString(",")).apply()
+    }
+
+    // ── CSV export ────────────────────────────────────────────────────────────
+
+    fun exportCsv(context: Context) {
+        val transactions = allTransactions.value
+        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+        val fileName = "transactions_$timestamp.csv"
+        val dir = context.getExternalFilesDir(null) ?: context.filesDir
+        val file = File(dir, fileName)
+
+        file.bufferedWriter().use { writer ->
+            writer.write("ID,Title,Amount,Type,Category,Date,PaymentMethod,Notes,Tags\n")
+            transactions.forEach { tx ->
+                val tags = tx.tags.joinToString("|")
+                val notes = tx.notes.replace(",", ";").replace("\n", " ")
+                writer.write("${tx.id},${tx.title},${tx.amount},${tx.type.name},${tx.category},${tx.date},${tx.paymentMethod.name},$notes,$tags\n")
+            }
+        }
+
+        val uri = androidx.core.content.FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.provider",
+            file
+        )
+
+        ShareCompat.IntentBuilder(context)
+            .setType("text/csv")
+            .setStream(uri)
+            .setChooserTitle("Export Transactions")
+            .startChooser()
+    }
+
+    // ── Factory ───────────────────────────────────────────────────────────────
+
+    companion object {
+        fun factory(
+            profileRepo: UserProfileRepository,
+            txRepo: TransactionRepository,
+            context: Context
+        ): ViewModelProvider.Factory =
+            object : ViewModelProvider.Factory {
+                @Suppress("UNCHECKED_CAST")
+                override fun <T : ViewModel> create(modelClass: Class<T>): T {
+                    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                    return SettingsViewModel(profileRepo, txRepo, prefs) as T
+                }
+            }
+    }
+}

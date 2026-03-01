@@ -18,6 +18,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Label
+import androidx.compose.material.icons.outlined.Payments
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,6 +31,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -39,7 +47,6 @@ import codes.chirag.paymenttracker.core.model.Transaction
 import codes.chirag.paymenttracker.core.model.TransactionType
 import codes.chirag.paymenttracker.core.utils.formatCurrency
 import codes.chirag.paymenttracker.core.utils.getCategoryMeta
-import codes.chirag.paymenttracker.feature.transactions.utils.getSampleTransactions
 import codes.chirag.paymenttracker.ui.theme.ExpenseRed
 import codes.chirag.paymenttracker.ui.theme.IncomeGreen
 import codes.chirag.paymenttracker.ui.theme.OrangePrimary
@@ -48,13 +55,16 @@ import codes.chirag.paymenttracker.ui.theme.OrangePrimary
 @Composable
 fun TransactionDetailsScreen(
     transactionId: String,
+    viewModel: TransactionViewModel,
     onNavigateBack: () -> Unit,
     onEdit: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    // TODO: Replace with actual data from ViewModel/Repository
-    val transaction = getSampleTransactions()
-        .find { it.id == transactionId } ?: return
+    var transaction by remember { mutableStateOf<Transaction?>(null) }
+
+    LaunchedEffect(transactionId) {
+        transaction = viewModel.getById(transactionId)
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -91,20 +101,32 @@ fun TransactionDetailsScreen(
             )
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(24.dp)
-        ) {
-            Spacer(modifier = Modifier.height(8.dp))
-            AmountSection(transaction = transaction)
-            Spacer(modifier = Modifier.height(8.dp))
-            TransactionDetailsList(transaction = transaction)
-            Spacer(modifier = Modifier.height(16.dp))
+        val tx = transaction
+        if (tx == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = OrangePrimary)
+            }
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Spacer(modifier = Modifier.height(8.dp))
+                AmountSection(transaction = tx)
+                Spacer(modifier = Modifier.height(8.dp))
+                TransactionDetailsList(transaction = tx)
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }
@@ -159,11 +181,25 @@ private fun TransactionDetailsList(
             value = transaction.date
         )
         DetailItem(
+            icon = Icons.Outlined.Payments,
+            iconColor = OrangePrimary,
+            label = "Payment Method",
+            value = transaction.paymentMethod.name
+        )
+        DetailItem(
             icon = Icons.Outlined.Description,
             iconColor = OrangePrimary,
             label = "Notes",
             value = transaction.notes.ifBlank { "No notes added" }
         )
+        if (transaction.tags.isNotEmpty()) {
+            DetailItem(
+                icon = Icons.Outlined.Label,
+                iconColor = OrangePrimary,
+                label = "Tags",
+                value = transaction.tags.joinToString(" · ")
+            )
+        }
     }
 }
 
