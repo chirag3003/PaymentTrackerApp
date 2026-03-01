@@ -11,9 +11,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -21,8 +24,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CurrencyRupee
 import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
@@ -30,28 +35,39 @@ import androidx.compose.material.icons.outlined.Receipt
 import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import codes.chirag.paymenttracker.BuildConfig
+import codes.chirag.paymenttracker.core.biometric.BiometricLockManager
+import codes.chirag.paymenttracker.core.model.PaymentMethod
 import codes.chirag.paymenttracker.ui.theme.Background
 import codes.chirag.paymenttracker.ui.theme.BorderColor
 import codes.chirag.paymenttracker.ui.theme.DividerColor
@@ -62,7 +78,9 @@ import codes.chirag.paymenttracker.ui.theme.OrangePrimary
 import codes.chirag.paymenttracker.ui.theme.OrangeSubtle
 import codes.chirag.paymenttracker.ui.theme.SurfaceL1
 import codes.chirag.paymenttracker.ui.theme.SurfaceL3
+import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
@@ -71,44 +89,82 @@ fun SettingsScreen(
     val context = LocalContext.current
     val profile by viewModel.profile.collectAsState()
 
-    val userName = profile?.name?.ifBlank { "User" } ?: "User"
+    val userName      = profile?.name?.ifBlank { "User" } ?: "User"
     val monthlyBudget = profile?.monthlyBudget ?: ""
     val budgetDisplay = if (monthlyBudget.isBlank()) "Not set" else "₹$monthlyBudget"
-    val nameInitial = userName.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
+    val preferredMethod = profile?.preferredMethod
+        ?.let { runCatching { PaymentMethod.valueOf(it) }.getOrNull() }
+        ?: PaymentMethod.UPI
+    val nameInitial   = userName.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
 
     // Toggle states — initialized from SharedPreferences via ViewModel
     var pushNotifications by remember { mutableStateOf(viewModel.getPushNotifications()) }
-    var billReminders by remember { mutableStateOf(viewModel.getBillReminders()) }
-    var budgetAlerts by remember { mutableStateOf(viewModel.getBudgetAlerts()) }
-    var securityLock by remember { mutableStateOf(false) }
+    var billReminders     by remember { mutableStateOf(viewModel.getBillReminders()) }
+    var budgetAlerts      by remember { mutableStateOf(viewModel.getBudgetAlerts()) }
+    var securityLock      by remember { mutableStateOf(viewModel.getBiometricLock()) }
 
-    // Dialog state
-    var showBudgetDialog by remember { mutableStateOf(false) }
-    var budgetInput by remember { mutableStateOf("") }
+    // Sheet / dialog visibility
+    var showEditProfileSheet  by rememberSaveable { mutableStateOf(false) }
+    var showCurrencyDialog    by rememberSaveable { mutableStateOf(false) }
+    var showImportDialog      by rememberSaveable { mutableStateOf(false) }
+    var showNoBiometricDialog by rememberSaveable { mutableStateOf(false) }
 
-    if (showBudgetDialog) {
+    val editProfileSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    // ── Edit Profile Sheet ────────────────────────────────────────────────────
+    if (showEditProfileSheet) {
+        EditProfileBottomSheet(
+            initialName   = userName.takeIf { it != "User" } ?: "",
+            initialBudget = monthlyBudget,
+            initialMethod = preferredMethod,
+            sheetState    = editProfileSheetState,
+            onDismiss = {
+                scope.launch { editProfileSheetState.hide() }.invokeOnCompletion {
+                    showEditProfileSheet = false
+                }
+            },
+            onSave = { name, budget, method ->
+                viewModel.updateProfile(name, budget, method)
+                scope.launch { editProfileSheetState.hide() }.invokeOnCompletion {
+                    showEditProfileSheet = false
+                }
+            }
+        )
+    }
+
+    // ── Currency dialog ───────────────────────────────────────────────────────
+    if (showCurrencyDialog) {
         AlertDialog(
-            onDismissRequest = { showBudgetDialog = false },
-            title = { Text("Monthly Budget") },
-            text = {
-                OutlinedTextField(
-                    value = budgetInput,
-                    onValueChange = { budgetInput = it },
-                    label = { Text("Amount (₹)") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
-                )
-            },
+            onDismissRequest = { showCurrencyDialog = false },
+            title = { Text("Currency") },
+            text  = { Text("This app uses Indian Rupee (₹ INR) as its only currency.") },
             confirmButton = {
-                TextButton(onClick = {
-                    if (budgetInput.isNotBlank()) {
-                        viewModel.updateBudget(budgetInput.trim())
-                    }
-                    showBudgetDialog = false
-                }) { Text("Save") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showBudgetDialog = false }) { Text("Cancel") }
+                TextButton(onClick = { showCurrencyDialog = false }) { Text("Got it") }
+            }
+        )
+    }
+
+    // ── Import coming soon dialog ─────────────────────────────────────────────
+    if (showImportDialog) {
+        AlertDialog(
+            onDismissRequest = { showImportDialog = false },
+            title = { Text("Import Data") },
+            text  = { Text("CSV import is coming soon. Stay tuned for updates!") },
+            confirmButton = {
+                TextButton(onClick = { showImportDialog = false }) { Text("OK") }
+            }
+        )
+    }
+
+    // ── No biometric enrolled dialog ──────────────────────────────────────────
+    if (showNoBiometricDialog) {
+        AlertDialog(
+            onDismissRequest = { showNoBiometricDialog = false },
+            title = { Text("Biometric Unavailable") },
+            text  = { Text("No biometric or screen lock is set up on this device. Go to Settings → Security to enrol a fingerprint, face, or PIN first.") },
+            confirmButton = {
+                TextButton(onClick = { showNoBiometricDialog = false }) { Text("OK") }
             }
         )
     }
@@ -128,7 +184,7 @@ fun SettingsScreen(
             )
         }
 
-        // Profile card
+        // ── Profile card ──────────────────────────────────────────────────────
         item {
             Box(
                 modifier = Modifier
@@ -136,7 +192,7 @@ fun SettingsScreen(
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(20.dp))
                     .background(SurfaceL1)
-                    .clickable { }
+                    .clickable { showEditProfileSheet = true }
                     .padding(16.dp)
             ) {
                 Row(
@@ -163,67 +219,85 @@ fun SettingsScreen(
                             color = OnBackground
                         )
                         Text(
-                            text = "Monthly budget: $budgetDisplay",
+                            text = "Budget: $budgetDisplay  ·  ${preferredMethod.name}",
                             style = MaterialTheme.typography.bodySmall,
                             color = OnSurfaceMuted
                         )
                     }
                     Icon(
-                        imageVector = Icons.Outlined.ChevronRight,
-                        contentDescription = null,
+                        imageVector = Icons.Outlined.Edit,
+                        contentDescription = "Edit profile",
                         tint = OnSurfaceMuted,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(18.dp)
                     )
                 }
             }
             Spacer(modifier = Modifier.height(24.dp))
         }
 
-        // Preferences section
+        // ── Preferences ───────────────────────────────────────────────────────
         item {
             SettingsSectionHeader("Preferences")
             SettingsSectionCard {
                 SettingRowNavigation(
-                    icon = Icons.Outlined.CurrencyRupee,
-                    label = "Currency",
-                    value = "INR (₹)",
-                    onClick = {}
+                    icon    = Icons.Outlined.CurrencyRupee,
+                    label   = "Currency",
+                    value   = "INR (₹)",
+                    onClick = { showCurrencyDialog = true }
                 )
                 SettingsDivider()
                 SettingRowNavigation(
-                    icon = Icons.Outlined.Category,
-                    label = "Manage Categories",
-                    onClick = {}
+                    icon    = Icons.Outlined.Category,
+                    label   = "Manage Categories",
+                    onClick = {}          // future: open category editor
                 )
                 SettingsDivider()
                 SettingRowNavigation(
-                    icon = Icons.Outlined.Receipt,
-                    label = "Monthly Budget",
-                    value = budgetDisplay,
-                    onClick = {
-                        budgetInput = monthlyBudget
-                        showBudgetDialog = true
-                    }
+                    icon    = Icons.Outlined.Receipt,
+                    label   = "Monthly Budget",
+                    value   = budgetDisplay,
+                    onClick = { showEditProfileSheet = true }
                 )
                 SettingsDivider()
                 SettingRowToggle(
-                    icon = Icons.Outlined.Fingerprint,
-                    label = "Security Lock",
-                    checked = securityLock,
-                    onCheckedChange = { securityLock = it }
+                    icon           = Icons.Outlined.Fingerprint,
+                    label          = "Biometric Lock",
+                    checked        = securityLock,
+                    onCheckedChange = { requested ->
+                        if (requested) {
+                            if (!BiometricLockManager.isAvailable(context)) {
+                                showNoBiometricDialog = true
+                                return@SettingRowToggle
+                            }
+                            // Verify biometrics before enabling
+                            BiometricLockManager.authenticate(
+                                context   = context,
+                                title     = "Enable Biometric Lock",
+                                subtitle  = "Confirm your identity to enable the lock",
+                                onSuccess = {
+                                    securityLock = true
+                                    viewModel.setBiometricLock(true)
+                                },
+                                onFailure = { /* switch stays OFF */ }
+                            )
+                        } else {
+                            securityLock = false
+                            viewModel.setBiometricLock(false)
+                        }
+                    }
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Notifications section
+        // ── Notifications ─────────────────────────────────────────────────────
         item {
             SettingsSectionHeader("Notifications")
             SettingsSectionCard {
                 SettingRowToggle(
-                    icon = Icons.Outlined.Notifications,
-                    label = "Push Notifications",
-                    checked = pushNotifications,
+                    icon           = Icons.Outlined.Notifications,
+                    label          = "Push Notifications",
+                    checked        = pushNotifications,
                     onCheckedChange = {
                         pushNotifications = it
                         viewModel.setToggle("push_notifs", it)
@@ -231,9 +305,9 @@ fun SettingsScreen(
                 )
                 SettingsDivider()
                 SettingRowToggle(
-                    icon = Icons.Outlined.Receipt,
-                    label = "Bill Reminders",
-                    checked = billReminders,
+                    icon           = Icons.Outlined.Receipt,
+                    label          = "Bill Reminders",
+                    checked        = billReminders,
                     onCheckedChange = {
                         billReminders = it
                         viewModel.setToggle("bill_reminders", it)
@@ -241,9 +315,9 @@ fun SettingsScreen(
                 )
                 SettingsDivider()
                 SettingRowToggle(
-                    icon = Icons.Outlined.Warning,
-                    label = "Budget Alerts",
-                    checked = budgetAlerts,
+                    icon           = Icons.Outlined.Warning,
+                    label          = "Budget Alerts",
+                    checked        = budgetAlerts,
                     onCheckedChange = {
                         budgetAlerts = it
                         viewModel.setToggle("budget_alerts", it)
@@ -253,39 +327,39 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // Data section
+        // ── Data ──────────────────────────────────────────────────────────────
         item {
             SettingsSectionHeader("Data")
             SettingsSectionCard {
                 SettingRowNavigation(
-                    icon = Icons.Outlined.Upload,
-                    label = "Export Data",
+                    icon    = Icons.Outlined.Upload,
+                    label   = "Export Data",
                     onClick = { viewModel.exportCsv(context) }
                 )
                 SettingsDivider()
                 SettingRowNavigation(
-                    icon = Icons.Outlined.Download,
-                    label = "Import Data",
-                    onClick = {}
+                    icon    = Icons.Outlined.Download,
+                    label   = "Import Data",
+                    onClick = { showImportDialog = true }
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
 
-        // About section
+        // ── About ─────────────────────────────────────────────────────────────
         item {
             SettingsSectionHeader("About")
             SettingsSectionCard {
                 SettingRowNavigation(
-                    icon = Icons.Outlined.Info,
-                    label = "App Version",
-                    value = BuildConfig.VERSION_NAME,
+                    icon    = Icons.Outlined.Info,
+                    label   = "App Version",
+                    value   = BuildConfig.VERSION_NAME,
                     onClick = {}
                 )
                 SettingsDivider()
                 SettingRowNavigation(
-                    icon = Icons.Outlined.AccountCircle,
-                    label = "Privacy Policy",
+                    icon    = Icons.Outlined.AccountCircle,
+                    label   = "Privacy Policy",
                     onClick = {}
                 )
             }
@@ -294,14 +368,163 @@ fun SettingsScreen(
     }
 }
 
+// ── Edit Profile Bottom Sheet ─────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditProfileBottomSheet(
+    initialName: String,
+    initialBudget: String,
+    initialMethod: PaymentMethod,
+    sheetState: androidx.compose.material3.SheetState,
+    onDismiss: () -> Unit,
+    onSave: (name: String, budget: String, method: PaymentMethod) -> Unit
+) {
+    var name   by rememberSaveable { mutableStateOf(initialName) }
+    var budget by rememberSaveable { mutableStateOf(initialBudget) }
+    var method by rememberSaveable { mutableStateOf(initialMethod) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState       = sheetState,
+        containerColor   = SurfaceL1
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text  = "Edit Profile",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = OnBackground,
+                    fontWeight = FontWeight.Bold
+                )
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(SurfaceL3)
+                        .clickable { onDismiss() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Close,
+                        contentDescription = "Close",
+                        tint = OnSurfaceMuted,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            // Name field
+            ProfileFieldLabel("Your Name") {
+                OutlinedTextField(
+                    value       = name,
+                    onValueChange = { name = it },
+                    placeholder = { Text("e.g. Chirag", color = OnSurfaceMuted) },
+                    singleLine  = true,
+                    modifier    = Modifier.fillMaxWidth(),
+                    shape       = RoundedCornerShape(12.dp),
+                    colors      = profileTextFieldColors()
+                )
+            }
+
+            // Budget field
+            ProfileFieldLabel("Monthly Budget (₹)") {
+                OutlinedTextField(
+                    value       = budget,
+                    onValueChange = { budget = it },
+                    placeholder = { Text("e.g. 15000", color = OnSurfaceMuted) },
+                    singleLine  = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier    = Modifier.fillMaxWidth(),
+                    shape       = RoundedCornerShape(12.dp),
+                    colors      = profileTextFieldColors()
+                )
+            }
+
+            // Payment method chips
+            ProfileFieldLabel("Preferred Payment Method") {
+                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(PaymentMethod.entries) { m ->
+                        val selected = m == method
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(if (selected) OrangePrimary else SurfaceL3)
+                                .clickable { method = m }
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                        ) {
+                            Text(
+                                text  = m.name,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (selected) OnPrimary else OnSurfaceMuted
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Save button
+            Button(
+                onClick = {
+                    onSave(name.trim(), budget.trim(), method)
+                },
+                enabled = name.isNotBlank(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape  = RoundedCornerShape(14.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = OrangePrimary,
+                    contentColor   = OnPrimary
+                )
+            ) {
+                Text("Save Changes", style = MaterialTheme.typography.titleSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileFieldLabel(label: String, content: @Composable () -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, style = MaterialTheme.typography.labelMedium, color = OnSurfaceMuted)
+        content()
+    }
+}
+
+@Composable
+private fun profileTextFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedTextColor      = OnBackground,
+    unfocusedTextColor    = OnBackground,
+    focusedBorderColor    = OrangePrimary,
+    unfocusedBorderColor  = BorderColor,
+    cursorColor           = OrangePrimary,
+    focusedContainerColor = SurfaceL3,
+    unfocusedContainerColor = SurfaceL3
+)
+
 // ── Helper composables ────────────────────────────────────────────────────────
 
 @Composable
 private fun SettingsSectionHeader(title: String) {
     Text(
-        text = title,
-        style = MaterialTheme.typography.labelMedium,
-        color = OnSurfaceMuted,
+        text     = title,
+        style    = MaterialTheme.typography.labelMedium,
+        color    = OnSurfaceMuted,
         modifier = Modifier.padding(start = 24.dp, bottom = 8.dp)
     )
 }
@@ -322,8 +545,8 @@ private fun SettingsSectionCard(content: @Composable () -> Unit) {
 @Composable
 private fun SettingsDivider() {
     HorizontalDivider(
-        modifier = Modifier.padding(start = 56.dp),
-        color = DividerColor,
+        modifier  = Modifier.padding(start = 56.dp),
+        color     = DividerColor,
         thickness = 0.5.dp
     )
 }
@@ -358,14 +581,14 @@ private fun SettingRowNavigation(
             )
         }
         Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = OnBackground,
+            text     = label,
+            style    = MaterialTheme.typography.bodyMedium,
+            color    = OnBackground,
             modifier = Modifier.weight(1f)
         )
         if (value != null) {
             Text(
-                text = value,
+                text  = value,
                 style = MaterialTheme.typography.labelMedium,
                 color = OnSurfaceMuted
             )
@@ -408,17 +631,17 @@ private fun SettingRowToggle(
             )
         }
         Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = OnBackground,
+            text     = label,
+            style    = MaterialTheme.typography.bodyMedium,
+            color    = OnBackground,
             modifier = Modifier.weight(1f)
         )
         Switch(
-            checked = checked,
+            checked         = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = OnPrimary,
-                checkedTrackColor = OrangePrimary,
+                checkedThumbColor   = OnPrimary,
+                checkedTrackColor   = OrangePrimary,
                 uncheckedThumbColor = OnSurfaceMuted,
                 uncheckedTrackColor = SurfaceL3,
                 uncheckedBorderColor = BorderColor

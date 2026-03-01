@@ -10,6 +10,7 @@ import codes.chirag.paymenttracker.PREFS_NAME
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
 import codes.chirag.paymenttracker.core.database.entities.UserProfileEntity
+import codes.chirag.paymenttracker.core.model.PaymentMethod
 import codes.chirag.paymenttracker.core.model.Transaction
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -38,6 +39,16 @@ class SettingsViewModel(
 
     // ── Profile mutations ─────────────────────────────────────────────────────
 
+    fun updateProfile(name: String, budget: String, method: PaymentMethod) {
+        viewModelScope.launch {
+            profileRepo.save(
+                name            = name,
+                monthlyBudget   = budget,
+                preferredMethod = method.name
+            )
+        }
+    }
+
     fun updateName(name: String) {
         viewModelScope.launch {
             val current = profile.value
@@ -63,11 +74,24 @@ class SettingsViewModel(
     // ── Notification toggles (SharedPreferences) ──────────────────────────────
 
     fun getPushNotifications(): Boolean = prefs.getBoolean("push_notifs", true)
-    fun getBillReminders(): Boolean = prefs.getBoolean("bill_reminders", true)
-    fun getBudgetAlerts(): Boolean = prefs.getBoolean("budget_alerts", false)
+    fun getBillReminders(): Boolean     = prefs.getBoolean("bill_reminders", true)
+    fun getBudgetAlerts(): Boolean      = prefs.getBoolean("budget_alerts", false)
 
     fun setToggle(key: String, value: Boolean) {
         prefs.edit().putBoolean(key, value).apply()
+    }
+
+    // ── Biometric lock ────────────────────────────────────────────────────────
+
+    fun getBiometricLock(): Boolean = prefs.getBoolean("biometric_lock", false)
+
+    fun setBiometricLock(enabled: Boolean) {
+        prefs.edit()
+            .putBoolean("biometric_lock", enabled)
+            // If disabling, clear the persisted lock flag so the app doesn't
+            // show the lock screen on next launch.
+            .apply { if (!enabled) putBoolean("needs_unlock", false) }
+            .apply()
     }
 
     // ── Custom categories (SharedPreferences CSV) ─────────────────────────────
@@ -94,7 +118,7 @@ class SettingsViewModel(
         file.bufferedWriter().use { writer ->
             writer.write("ID,Title,Amount,Type,Category,Date,PaymentMethod,Notes,Tags\n")
             transactions.forEach { tx ->
-                val tags = tx.tags.joinToString("|")
+                val tags  = tx.tags.joinToString("|")
                 val notes = tx.notes.replace(",", ";").replace("\n", " ")
                 writer.write("${tx.id},${tx.title},${tx.amount},${tx.type.name},${tx.category},${tx.date},${tx.paymentMethod.name},$notes,$tags\n")
             }
