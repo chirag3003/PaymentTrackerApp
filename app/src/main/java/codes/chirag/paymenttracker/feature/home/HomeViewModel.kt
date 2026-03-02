@@ -6,24 +6,38 @@ import androidx.lifecycle.viewModelScope
 import codes.chirag.paymenttracker.core.data.repository.PreferencesRepository
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
+import codes.chirag.paymenttracker.core.model.BalancePeriod
 import codes.chirag.paymenttracker.core.model.CategorySpending
 import codes.chirag.paymenttracker.core.model.Transaction
 import codes.chirag.paymenttracker.core.model.TransactionType
 import codes.chirag.paymenttracker.feature.home.components.WeeklyBarData
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.util.Calendar
 
 data class HomeUiState(
     val userName: String = "",
+    // Balance card values — scoped to balancePeriod
     val balance: Double = 0.0,
     val monthlyIncome: Double = 0.0,
     val monthlyExpense: Double = 0.0,
+    val balancePeriod: BalancePeriod = BalancePeriod.Monthly,
+    // Daily budget
     val safeToSpend: Double = 0.0,
     val dailyBudget: Double = 0.0,
     val spentToday: Double = 0.0,
+    // Home bar chart
     val weeklySpending: List<WeeklyBarData> = emptyList(),
+    val homeWeekLabel: String = "",
+    val homeWeekOffset: Int = 0,
+    // Insights bar chart (independent offset)
+    val insightsWeeklySpending: List<WeeklyBarData> = emptyList(),
+    val insightsWeekLabel: String = "",
+    val insightsWeekOffset: Int = 0,
+    // Category + recent
     val categorySpending: List<CategorySpending> = emptyList(),
     val recentTransactions: List<Transaction> = emptyList()
 )
@@ -34,27 +48,41 @@ class HomeViewModel(
     private val prefsRepo: PreferencesRepository
 ) : ViewModel() {
 
+    // ── Public mutable state ─────────────────────────────────────────────────
+
+    val balancePeriod = MutableStateFlow<BalancePeriod>(BalancePeriod.Monthly)
+
+    private val _homeWeekOffset = MutableStateFlow(0)
+    private val _insightsWeekOffset = MutableStateFlow(0)
+
+    // ── UI state ─────────────────────────────────────────────────────────────
+
     val uiState: StateFlow<HomeUiState> = combine(
         txRepo.allTransactions,
-        profileRepo.profile
-    ) { transactions, profile ->
+        profileRepo.profile,
+        balancePeriod,
+        _homeWeekOffset,
+        _insightsWeekOffset
+    ) { transactions, profile, period, homeOffset, insightsOffset ->
         val monthlyBudget = profile?.monthlyBudget?.toDoubleOrNull() ?: 0.0
         val userName = profile?.name ?: ""
 
-        val income  = transactions.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
-        val expense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
+        // ── Balance card — filtered by period ──────────────────────────────
+        val periodTxns = filterByPeriod(transactions, period)
+        val income  = periodTxns.filter { it.type == TransactionType.INCOME }.sumOf { it.amount }
+        val expense = periodTxns.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
         val balance = income - expense
 
-        val todayLabel = todayLabel()
+        // ── Daily budget ──────────────────────────────────────────────────
+        val todayLbl = todayLabel()
         val spentToday = transactions
-            .filter { it.type == TransactionType.EXPENSE && it.date == todayLabel }
+            .filter { it.type == TransactionType.EXPENSE && it.date == todayLbl }
             .sumOf { it.amount }
-
         val daysInMonth = 30
         val dailyBudget = if (monthlyBudget > 0) monthlyBudget / daysInMonth else 0.0
         val safeToSpend = (dailyBudget - spentToday).coerceAtLeast(0.0)
 
-        // Category spending — read budgets from SharedPreferences
+        // ── Category spending (always all-time) ────────────────────────────
         val categoryBudgets = prefsRepo.getCategoryBudgets()
         val categorySpending = transactions
             .filter { it.type == TransactionType.EXPENSE }
@@ -69,55 +97,174 @@ class HomeViewModel(
             .sortedByDescending { it.amount }
             .take(6)
 
-        val weeklySpending = buildWeeklyData(transactions)
+        // ── Weekly charts ──────────────────────────────────────────────────
+        val (homeWeekData, homeWeekLabel) = buildWeeklyData(transactions, homeOffset)
+        val (insightsWeekData, insightsWeekLabel) = buildWeeklyData(transactions, insightsOffset)
 
         HomeUiState(
-            userName           = userName.ifBlank { "there" },
-            balance            = balance,
-            monthlyIncome      = income,
-            monthlyExpense     = expense,
-            safeToSpend        = safeToSpend,
-            dailyBudget        = dailyBudget,
-            spentToday         = spentToday,
-            weeklySpending     = weeklySpending,
-            categorySpending   = categorySpending,
-            recentTransactions = transactions.take(5)
+            userName              = userName.ifBlank { "there" },
+            balance               = balance,
+            monthlyIncome         = income,
+            monthlyExpense        = expense,
+            balancePeriod         = period,
+            safeToSpend           = safeToSpend,
+            dailyBudget           = dailyBudget,
+            spentToday            = spentToday,
+            weeklySpending        = homeWeekData,
+            homeWeekLabel         = homeWeekLabel,
+            homeWeekOffset        = homeOffset,
+            insightsWeeklySpending = insightsWeekData,
+            insightsWeekLabel     = insightsWeekLabel,
+            insightsWeekOffset    = insightsOffset,
+            categorySpending      = categorySpending,
+            recentTransactions    = transactions.take(5)
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+
+    // ── Period selector ───────────────────────────────────────────────────────
+
+    fun setBalancePeriod(period: BalancePeriod) {
+        balancePeriod.value = period
+    }
+
+    // ── Week navigation ───────────────────────────────────────────────────────
+
+    fun homeWeekPrev()  { _homeWeekOffset.value -= 1 }
+    fun homeWeekNext()  { if (_homeWeekOffset.value < 0) _homeWeekOffset.value += 1 }
+
+    fun insightsWeekPrev()  { _insightsWeekOffset.value -= 1 }
+    fun insightsWeekNext()  { if (_insightsWeekOffset.value < 0) _insightsWeekOffset.value += 1 }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun todayLabel(): String {
-        val cal = java.util.Calendar.getInstance()
+        val cal = Calendar.getInstance()
         val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-        return "${months[cal.get(java.util.Calendar.MONTH)]} ${cal.get(java.util.Calendar.DAY_OF_MONTH)}, ${cal.get(java.util.Calendar.YEAR)}"
+        return "${months[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.DAY_OF_MONTH)}, ${cal.get(Calendar.YEAR)}"
     }
 
-    private fun buildWeeklyData(transactions: List<Transaction>): List<WeeklyBarData> {
-        val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-        val dateGroups = transactions
-            .filter { it.type == TransactionType.EXPENSE }
-            .groupBy { it.date }
+    /**
+     * Filter transactions to only those belonging to the given [BalancePeriod].
+     */
+    private fun filterByPeriod(
+        transactions: List<Transaction>,
+        period: BalancePeriod
+    ): List<Transaction> {
+        return when (period) {
+            is BalancePeriod.AllTime -> transactions
 
-        val distinctDates = dateGroups.keys
-            .sortedWith(Comparator { a, b -> compareDateStrings(a, b) })
-            .takeLast(7)
+            is BalancePeriod.Monthly -> {
+                val cal = Calendar.getInstance()
+                val currentMonth = cal.get(Calendar.MONTH)
+                val currentYear  = cal.get(Calendar.YEAR)
+                transactions.filter { tx ->
+                    val rank = resolveDateRank(tx.date)
+                    val txCal = rankToCalendar(rank) ?: return@filter false
+                    txCal.get(Calendar.MONTH) == currentMonth &&
+                    txCal.get(Calendar.YEAR)  == currentYear
+                }
+            }
 
-        return distinctDates.mapIndexed { index, date ->
+            is BalancePeriod.FromDate -> {
+                val startRank = parseYYYYMMDD(period.startLabel)
+                if (startRank == 0) transactions
+                else transactions.filter { tx ->
+                    val rank = resolveDateRank(tx.date)
+                    rank >= startRank
+                }
+            }
+        }
+    }
+
+    /**
+     * Resolve a transaction date string ("Today", "Yesterday", or "MMM d, yyyy") to an
+     * integer in YYYYMMDD format for easy comparison.
+     */
+    private fun resolveDateRank(dateStr: String): Int {
+        return when (dateStr) {
+            "Today" -> {
+                val cal = Calendar.getInstance()
+                dateToRank(cal)
+            }
+            "Yesterday" -> {
+                val cal = Calendar.getInstance().also { it.add(Calendar.DAY_OF_MONTH, -1) }
+                dateToRank(cal)
+            }
+            else -> parseYYYYMMDD(dateStr)
+        }
+    }
+
+    private fun dateToRank(cal: Calendar): Int {
+        val y = cal.get(Calendar.YEAR)
+        val m = cal.get(Calendar.MONTH) + 1
+        val d = cal.get(Calendar.DAY_OF_MONTH)
+        return y * 10000 + m * 100 + d
+    }
+
+    private fun rankToCalendar(rank: Int): Calendar? {
+        if (rank == 0) return null
+        val y = rank / 10000
+        val m = (rank / 100) % 100 - 1
+        val d = rank % 100
+        return Calendar.getInstance().also {
+            it.set(y, m, d, 0, 0, 0)
+            it.set(Calendar.MILLISECOND, 0)
+        }
+    }
+
+    /**
+     * Builds a true Sun–Sat weekly bar chart for the week at [offset] weeks from now.
+     * offset=0 → current week, offset=-1 → last week, etc.
+     *
+     * Returns a [Pair] of the bar data list and a display label like "Feb 23 – Mar 1".
+     */
+    private fun buildWeeklyData(
+        transactions: List<Transaction>,
+        offset: Int
+    ): Pair<List<WeeklyBarData>, String> {
+        val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+
+        // Find Sunday of the target week
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.WEEK_OF_YEAR, offset)
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+
+        // Build 7 day slots: Sun Mon Tue Wed Thu Fri Sat
+        val dayLabels = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+        val dayRanks = (0..6).map { i ->
+            val dayCal = cal.clone() as Calendar
+            dayCal.add(Calendar.DAY_OF_MONTH, i)
+            dateToRank(dayCal)
+        }
+
+        // Week label (e.g. "Feb 23 – Mar 1")
+        val startCal = cal.clone() as Calendar
+        val endCal   = (cal.clone() as Calendar).also { it.add(Calendar.DAY_OF_MONTH, 6) }
+        val weekLabel = buildString {
+            append(months[startCal.get(Calendar.MONTH)])
+            append(" ${startCal.get(Calendar.DAY_OF_MONTH)}")
+            append(" – ")
+            append(months[endCal.get(Calendar.MONTH)])
+            append(" ${endCal.get(Calendar.DAY_OF_MONTH)}")
+        }
+
+        // Sum expenses per day slot
+        val expenseTxns = transactions.filter { it.type == TransactionType.EXPENSE }
+        val sumByRank: Map<Int, Double> = expenseTxns
+            .groupBy { resolveDateRank(it.date) }
+            .mapValues { (_, list) -> list.sumOf { it.amount } }
+
+        val bars = dayRanks.mapIndexed { i, rank ->
             WeeklyBarData(
-                day    = days.getOrElse(index) { date.take(3) },
-                amount = dateGroups[date]?.sumOf { it.amount } ?: 0.0
+                day    = dayLabels[i],
+                amount = sumByRank[rank] ?: 0.0
             )
         }
-    }
-
-    private fun compareDateStrings(a: String, b: String): Int {
-        fun rank(s: String) = when (s) {
-            "Today"     -> Int.MAX_VALUE
-            "Yesterday" -> Int.MAX_VALUE - 1
-            else        -> parseYYYYMMDD(s)
-        }
-        return rank(a).compareTo(rank(b))
+        return Pair(bars, weekLabel)
     }
 
     private fun parseYYYYMMDD(s: String): Int {
@@ -146,4 +293,3 @@ class HomeViewModel(
             }
     }
 }
-

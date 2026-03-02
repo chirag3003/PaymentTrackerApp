@@ -10,7 +10,6 @@ import androidx.compose.material.icons.outlined.LocalHospital
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.ShoppingBag
-import androidx.compose.material.icons.outlined.Subscriptions
 import androidx.compose.material.icons.outlined.Work
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -21,7 +20,6 @@ import codes.chirag.paymenttracker.ui.theme.CategoryGroceries
 import codes.chirag.paymenttracker.ui.theme.CategoryHealth
 import codes.chirag.paymenttracker.ui.theme.CategoryOther
 import codes.chirag.paymenttracker.ui.theme.CategoryShopping
-import codes.chirag.paymenttracker.ui.theme.CategorySubscription
 import codes.chirag.paymenttracker.ui.theme.CategoryTransport
 import codes.chirag.paymenttracker.ui.theme.IncomeGreen
 
@@ -37,7 +35,6 @@ fun getCategoryMeta(category: String): CategoryMeta = when (category.lowercase()
     "shopping"                      -> CategoryMeta(Icons.Outlined.ShoppingBag, CategoryShopping)
     "entertainment"                 -> CategoryMeta(Icons.Outlined.Movie, CategoryEntertainment)
     "groceries"                     -> CategoryMeta(Icons.Outlined.LocalGroceryStore, CategoryGroceries)
-    "subscription", "subscriptions" -> CategoryMeta(Icons.Outlined.Subscriptions, CategorySubscription)
     "health", "medical"             -> CategoryMeta(Icons.Outlined.LocalHospital, CategoryHealth)
     "fitness"                       -> CategoryMeta(Icons.Outlined.FitnessCenter, CategoryHealth)
     "education", "study"            -> CategoryMeta(Icons.AutoMirrored.Outlined.MenuBook, CategoryEducation)

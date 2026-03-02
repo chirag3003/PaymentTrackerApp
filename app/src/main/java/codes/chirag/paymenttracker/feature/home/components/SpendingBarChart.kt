@@ -13,6 +13,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,10 +27,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import codes.chirag.paymenttracker.ui.theme.DividerColor
 import codes.chirag.paymenttracker.ui.theme.OnBackground
 import codes.chirag.paymenttracker.ui.theme.OnSurfaceMuted
 import codes.chirag.paymenttracker.ui.theme.OrangePrimary
@@ -33,13 +36,17 @@ import codes.chirag.paymenttracker.ui.theme.SurfaceL1
 import codes.chirag.paymenttracker.ui.theme.SurfaceL3
 
 data class WeeklyBarData(
-    val day: String,    // "Mon", "Tue", etc.
+    val day: String,    // "Sun", "Mon", etc.
     val amount: Double
 )
 
 @Composable
 fun SpendingBarChart(
     weeklyData: List<WeeklyBarData>,
+    weekLabel: String = "This Week",
+    onPrevWeek: () -> Unit = {},
+    onNextWeek: () -> Unit = {},
+    canGoNext: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     if (weeklyData.isEmpty()) return
@@ -55,22 +62,49 @@ fun SpendingBarChart(
             .padding(20.dp)
     ) {
         Column {
+            // ── Header with week navigation ────────────────────────────
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "This Week",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = OnBackground
-                )
-                Text(
-                    text = "Spending",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = OnSurfaceMuted
-                )
+                IconButton(
+                    onClick = onPrevWeek,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChevronLeft,
+                        contentDescription = "Previous week",
+                        tint = OnSurfaceMuted
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "Spending",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OnSurfaceMuted
+                    )
+                    Text(
+                        text = weekLabel,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = OnBackground
+                    )
+                }
+
+                IconButton(
+                    onClick = onNextWeek,
+                    enabled = canGoNext,
+                    modifier = Modifier.size(36.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChevronRight,
+                        contentDescription = "Next week",
+                        tint = if (canGoNext) OnSurfaceMuted else OnSurfaceMuted.copy(alpha = 0.3f)
+                    )
+                }
             }
+
             Spacer(modifier = Modifier.height(20.dp))
 
             val chartHeight = 120.dp

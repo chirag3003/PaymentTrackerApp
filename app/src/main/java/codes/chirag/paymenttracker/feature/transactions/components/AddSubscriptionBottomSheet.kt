@@ -54,8 +54,8 @@ import codes.chirag.paymenttracker.ui.theme.SurfaceL3
 import java.util.Calendar
 
 private val subscriptionCategories = listOf(
-    "Subscription", "Entertainment", "Health", "Education",
-    "Food", "Groceries", "Transport", "Other"
+    "Entertainment", "Health", "Education",
+    "Food", "Groceries", "Transport", "Fitness", "Shopping", "Other"
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

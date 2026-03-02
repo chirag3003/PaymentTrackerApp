@@ -72,7 +72,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -85,15 +84,15 @@ import codes.chirag.paymenttracker.core.data.repository.SubscriptionRepository
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
 import codes.chirag.paymenttracker.core.database.AppDatabase
-import codes.chirag.paymenttracker.core.database.DatabaseSeeder
 import codes.chirag.paymenttracker.core.model.PaymentMethod
+import codes.chirag.paymenttracker.core.model.Subscription
 import codes.chirag.paymenttracker.core.model.Transaction
 import codes.chirag.paymenttracker.core.model.TransactionType
-import java.util.Calendar
 import java.util.UUID
 import codes.chirag.paymenttracker.feature.transactions.TransactionViewModel
 import codes.chirag.paymenttracker.feature.transactions.components.AddTransactionBottomSheet
 import codes.chirag.paymenttracker.feature.transactions.components.QuickAddBottomSheet
+import codes.chirag.paymenttracker.feature.transactions.components.RecurringInfo
 import codes.chirag.paymenttracker.navigation.BottomNavDestination
 import codes.chirag.paymenttracker.navigation.OnboardingRoute
 import codes.chirag.paymenttracker.navigation.PaymentTrackerNavHost
@@ -131,10 +130,6 @@ class MainActivity : FragmentActivity() {
         goalRepo         = GoalRepository(db.goalDao())
         profileRepo      = UserProfileRepository(db.userProfileDao())
         subscriptionRepo = SubscriptionRepository(db.subscriptionDao())
-
-        lifecycleScope.launch(Dispatchers.IO) {
-            DatabaseSeeder.seedIfEmpty(txRepo, goalRepo)
-        }
 
         enableEdgeToEdge()
         setContent {
@@ -394,17 +389,13 @@ fun PaymentTrackerApp(
                         showAddSheet = false
                     }
                 },
-                onSave = { title, amountStr, type, category, paymentMethod, notes ->
-                    // Save via the scoped TransactionViewModel if available,
-                    // otherwise fall back to creating a repository call directly
+                onSave = { title, amountStr, type, category, paymentMethod, notes, date, recurring ->
+                    // Save transaction via scoped ViewModel if available, otherwise direct repo call
                     if (txViewModel != null) {
-                        txViewModel.add(title, amountStr, type, category, paymentMethod, notes)
+                        txViewModel.add(title, amountStr, type, category, paymentMethod, notes, date)
                     } else {
                         val amount = amountStr.toDoubleOrNull()
                         if (amount != null) {
-                            val cal = Calendar.getInstance()
-                            val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-                            val dateLabel = "${months[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.DAY_OF_MONTH)}, ${cal.get(Calendar.YEAR)}"
                             coroutineScope.launch(Dispatchers.IO) {
                                 txRepo.add(
                                     Transaction(
@@ -413,9 +404,29 @@ fun PaymentTrackerApp(
                                         amount        = amount,
                                         type          = type,
                                         category      = category,
-                                        date          = dateLabel,
+                                        date          = date,
                                         paymentMethod = paymentMethod,
                                         notes         = notes
+                                    )
+                                )
+                            }
+                        }
+                    }
+                    // If recurring, also create a subscription entry
+                    if (recurring != null) {
+                        val amount = amountStr.toDoubleOrNull()
+                        if (amount != null) {
+                            coroutineScope.launch(Dispatchers.IO) {
+                                subscriptionRepo.add(
+                                    Subscription(
+                                        id            = UUID.randomUUID().toString(),
+                                        name          = title,
+                                        amount        = amount,
+                                        frequency     = recurring.frequency,
+                                        nextDueDate   = recurring.nextDueDate,
+                                        category      = category,
+                                        paymentMethod = paymentMethod,
+                                        isActive      = true
                                     )
                                 )
                             }

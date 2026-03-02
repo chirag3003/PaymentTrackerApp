@@ -20,6 +20,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowBack
+import androidx.compose.material.icons.outlined.ChevronLeft
+import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.TrendingDown
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -165,13 +167,17 @@ fun InsightsScreen(
             }
 
             // ── Weekly bar chart ──────────────────────────────────────────────
-            if (state.weeklySpending.isNotEmpty()) {
+            if (state.insightsWeeklySpending.isNotEmpty()) {
                 item {
                     SectionTitle("Weekly Trend", modifier = Modifier.padding(horizontal = 20.dp))
                     Spacer(modifier = Modifier.height(12.dp))
                     InsightsBarChart(
-                        data = state.weeklySpending,
-                        modifier = Modifier
+                        data       = state.insightsWeeklySpending,
+                        weekLabel  = state.insightsWeekLabel,
+                        onPrevWeek = { viewModel.insightsWeekPrev() },
+                        onNextWeek = { viewModel.insightsWeekNext() },
+                        canGoNext  = state.insightsWeekOffset < 0,
+                        modifier   = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 20.dp)
                     )
@@ -337,11 +343,15 @@ private fun CategoryInsightRow(
 }
 
 /**
- * Simplified bar chart for the Insights screen weekly trend.
+ * Simplified bar chart for the Insights screen weekly trend with week navigation.
  */
 @Composable
 private fun InsightsBarChart(
     data: List<WeeklyBarData>,
+    weekLabel: String = "",
+    onPrevWeek: () -> Unit = {},
+    onNextWeek: () -> Unit = {},
+    canGoNext: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val maxAmount = data.maxOfOrNull { it.amount }?.toFloat()?.coerceAtLeast(1f) ?: 1f
@@ -352,6 +362,52 @@ private fun InsightsBarChart(
             .background(SurfaceL1)
             .padding(16.dp)
     ) {
+        // ── Week navigation header ──────────────────────────────────────
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(
+                onClick = onPrevWeek,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ChevronLeft,
+                    contentDescription = "Previous week",
+                    tint = OnSurfaceMuted
+                )
+            }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "Spending",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceMuted
+                )
+                if (weekLabel.isNotBlank()) {
+                    Text(
+                        text = weekLabel,
+                        style = MaterialTheme.typography.titleSmall,
+                        color = OnBackground
+                    )
+                }
+            }
+            IconButton(
+                onClick = onNextWeek,
+                enabled = canGoNext,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ChevronRight,
+                    contentDescription = "Next week",
+                    tint = if (canGoNext) OnSurfaceMuted else OnSurfaceMuted.copy(alpha = 0.3f)
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // ── Bars ──────────────────────────────────────────────────────
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.Bottom,

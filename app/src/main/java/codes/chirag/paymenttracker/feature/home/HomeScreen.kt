@@ -61,6 +61,8 @@ fun HomeScreen(
                 balance = state.balance,
                 monthlyIncome = state.monthlyIncome,
                 monthlyExpense = state.monthlyExpense,
+                balancePeriod = state.balancePeriod,
+                onPeriodChange = { viewModel.setBalancePeriod(it) },
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
         }
@@ -82,8 +84,12 @@ fun HomeScreen(
         item { Spacer(modifier = Modifier.height(24.dp)) }
         item {
             SpendingBarChart(
-                weeklyData = state.weeklySpending,
-                modifier = Modifier.padding(horizontal = 20.dp)
+                weeklyData  = state.weeklySpending,
+                weekLabel   = state.homeWeekLabel,
+                onPrevWeek  = { viewModel.homeWeekPrev() },
+                onNextWeek  = { viewModel.homeWeekNext() },
+                canGoNext   = state.homeWeekOffset < 0,
+                modifier    = Modifier.padding(horizontal = 20.dp)
             )
         }
         item { Spacer(modifier = Modifier.height(24.dp)) }

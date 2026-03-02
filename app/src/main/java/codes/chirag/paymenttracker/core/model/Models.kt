@@ -124,6 +124,19 @@ data class Goal(
 enum class BillingFrequency { WEEKLY, MONTHLY, YEARLY }
 
 /**
+ * Time period for the balance card.
+ *
+ * - [Monthly]  – current calendar month only (default)
+ * - [AllTime]  – all transactions ever
+ * - [FromDate] – from a specific display-string date to now (inclusive)
+ */
+sealed class BalancePeriod {
+    object Monthly : BalancePeriod()
+    object AllTime : BalancePeriod()
+    data class FromDate(val startLabel: String) : BalancePeriod()
+}
+
+/**
  * A recurring subscription or bill tracked by the user.
  *
  * @param id            Unique identifier.
