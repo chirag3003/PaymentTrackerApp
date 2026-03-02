@@ -3,6 +3,7 @@ package codes.chirag.paymenttracker.navigation
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -13,6 +14,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import androidx.navigation.toRoute
 import codes.chirag.paymenttracker.core.data.repository.GoalRepository
+import codes.chirag.paymenttracker.core.data.repository.PreferencesRepository
+import codes.chirag.paymenttracker.core.data.repository.SubscriptionRepository
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
 import codes.chirag.paymenttracker.core.model.PaymentMethod
@@ -21,10 +24,11 @@ import codes.chirag.paymenttracker.feature.goals.GoalViewModel
 import codes.chirag.paymenttracker.feature.goals.GoalsScreen
 import codes.chirag.paymenttracker.feature.home.HomeScreen
 import codes.chirag.paymenttracker.feature.home.HomeViewModel
+import codes.chirag.paymenttracker.feature.home.InsightsScreen
 import codes.chirag.paymenttracker.feature.onboarding.OnboardingScreen
 import codes.chirag.paymenttracker.feature.settings.SettingsScreen
 import codes.chirag.paymenttracker.feature.settings.SettingsViewModel
-import codes.chirag.paymenttracker.feature.transactions.EditTransactionScreen
+import codes.chirag.paymenttracker.feature.transactions.SubscriptionViewModel
 import codes.chirag.paymenttracker.feature.transactions.TransactionDetailsScreen
 import codes.chirag.paymenttracker.feature.transactions.TransactionViewModel
 import codes.chirag.paymenttracker.feature.transactions.TransactionsScreen
@@ -45,8 +49,11 @@ fun PaymentTrackerNavHost(
     txRepo: TransactionRepository,
     goalRepo: GoalRepository,
     profileRepo: UserProfileRepository,
+    subscriptionRepo: SubscriptionRepository,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val prefsRepo = remember { PreferencesRepository(context) }
     val start: Any = if (showOnboarding) OnboardingGraph else Route.HomeGraph
 
     NavHost(
@@ -70,10 +77,10 @@ fun PaymentTrackerNavHost(
             }
         }
 
-        homeGraph(innerPadding, navController, txRepo, profileRepo)
-        transactionsGraph(innerPadding, navController, txRepo)
+        homeGraph(innerPadding, navController, txRepo, profileRepo, prefsRepo)
+        transactionsGraph(innerPadding, navController, txRepo, subscriptionRepo)
         goalsGraph(innerPadding, navController, goalRepo)
-        settingsGraph(innerPadding, navController, profileRepo, txRepo)
+        settingsGraph(innerPadding, navController, profileRepo, txRepo, prefsRepo)
     }
 }
 
@@ -84,7 +91,8 @@ private fun NavGraphBuilder.homeGraph(
     innerPadding: PaddingValues,
     navController: NavHostController,
     txRepo: TransactionRepository,
-    profileRepo: UserProfileRepository
+    profileRepo: UserProfileRepository,
+    prefsRepo: PreferencesRepository
 ) {
     navigation<Route.HomeGraph>(
         startDestination = HomeRoute.Home
@@ -95,12 +103,26 @@ private fun NavGraphBuilder.homeGraph(
             }
             val homeViewModel: HomeViewModel = viewModel(
                 viewModelStoreOwner = parentEntry,
-                factory = HomeViewModel.factory(txRepo, profileRepo)
+                factory = HomeViewModel.factory(txRepo, profileRepo, prefsRepo)
             )
             HomeScreen(
                 viewModel = homeViewModel,
                 contentPadding = innerPadding,
                 navController = navController
+            )
+        }
+        composable<HomeRoute.Insights> { backStackEntry ->
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Route.HomeGraph)
+            }
+            val homeViewModel: HomeViewModel = viewModel(
+                viewModelStoreOwner = parentEntry,
+                factory = HomeViewModel.factory(txRepo, profileRepo, prefsRepo)
+            )
+            InsightsScreen(
+                viewModel = homeViewModel,
+                onNavigateBack = { navController.navigateUp() },
+                contentPadding = innerPadding
             )
         }
     }
@@ -112,7 +134,8 @@ private fun NavGraphBuilder.homeGraph(
 private fun NavGraphBuilder.transactionsGraph(
     innerPadding: PaddingValues,
     navController: NavController,
-    txRepo: TransactionRepository
+    txRepo: TransactionRepository,
+    subscriptionRepo: SubscriptionRepository
 ) {
     navigation<Route.TransactionsGraph>(
         startDestination = TransactionsRoute.TransactionsList
@@ -125,8 +148,13 @@ private fun NavGraphBuilder.transactionsGraph(
                 viewModelStoreOwner = parentEntry,
                 factory = TransactionViewModel.factory(txRepo)
             )
+            val subViewModel: SubscriptionViewModel = viewModel(
+                viewModelStoreOwner = parentEntry,
+                factory = SubscriptionViewModel.factory(subscriptionRepo)
+            )
             TransactionsScreen(
                 viewModel = txViewModel,
+                subscriptionViewModel = subViewModel,
                 contentPadding = innerPadding,
                 onTransactionClick = { transactionId ->
                     navController.navigate(TransactionsRoute.TransactionDetails(transactionId))
@@ -146,33 +174,7 @@ private fun NavGraphBuilder.transactionsGraph(
             TransactionDetailsScreen(
                 transactionId = args.transactionId,
                 viewModel = txViewModel,
-                onNavigateBack = { navController.navigateUp() },
-                onEdit = {
-                    navController.navigate(TransactionsRoute.EditTransaction(args.transactionId))
-                }
-            )
-        }
-
-        composable<TransactionsRoute.EditTransaction> { backStackEntry ->
-            val args = backStackEntry.toRoute<TransactionsRoute.EditTransaction>()
-            val parentEntry = remember(backStackEntry) {
-                navController.getBackStackEntry(Route.TransactionsGraph)
-            }
-            val txViewModel: TransactionViewModel = viewModel(
-                viewModelStoreOwner = parentEntry,
-                factory = TransactionViewModel.factory(txRepo)
-            )
-            EditTransactionScreen(
-                transactionId = args.transactionId,
-                viewModel = txViewModel,
-                onNavigateBack = { navController.navigateUp() },
-                onSaveAndNavigateBack = { navController.navigateUp() },
-                onDeleteAndNavigateToList = {
-                    navController.popBackStack(
-                        route = TransactionsRoute.TransactionsList,
-                        inclusive = false
-                    )
-                }
+                onNavigateBack = { navController.navigateUp() }
             )
         }
     }
@@ -230,7 +232,8 @@ private fun NavGraphBuilder.settingsGraph(
     innerPadding: PaddingValues,
     navController: NavHostController,
     profileRepo: UserProfileRepository,
-    txRepo: TransactionRepository
+    txRepo: TransactionRepository,
+    prefsRepo: PreferencesRepository
 ) {
     navigation<Route.SettingsGraph>(
         startDestination = SettingsRoute.SettingsHome
@@ -242,18 +245,32 @@ private fun NavGraphBuilder.settingsGraph(
             val context = androidx.compose.ui.platform.LocalContext.current
             val settingsViewModel: SettingsViewModel = viewModel(
                 viewModelStoreOwner = parentEntry,
-                factory = SettingsViewModel.factory(profileRepo, txRepo, context)
+                factory = SettingsViewModel.factory(profileRepo, txRepo, context, prefsRepo)
             )
             SettingsScreen(
                 viewModel = settingsViewModel,
+                onManageCategories = {
+                    navController.navigate(SettingsRoute.ManageCategories)
+                },
+                modifier = Modifier.padding(innerPadding)
+            )
+        }
+        composable<SettingsRoute.ManageCategories> { backStackEntry ->
+            val parentEntry = remember(backStackEntry) {
+                navController.getBackStackEntry(Route.SettingsGraph)
+            }
+            val context = androidx.compose.ui.platform.LocalContext.current
+            val settingsViewModel: SettingsViewModel = viewModel(
+                viewModelStoreOwner = parentEntry,
+                factory = SettingsViewModel.factory(profileRepo, txRepo, context, prefsRepo)
+            )
+            codes.chirag.paymenttracker.feature.settings.ManageCategoriesScreen(
+                viewModel = settingsViewModel,
+                onNavigateBack = { navController.navigateUp() },
                 modifier = Modifier.padding(innerPadding)
             )
         }
     }
 }
 
-// Helper: remember a back-stack entry in the context of a composable.
-// Defined as an extension so it can be called inside NavGraphBuilder lambdas.
-@Composable
-private fun <T> remember(key: T, calculation: () -> androidx.navigation.NavBackStackEntry) =
-    androidx.compose.runtime.remember(key) { calculation() }
+

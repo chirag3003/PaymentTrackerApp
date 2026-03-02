@@ -66,14 +66,20 @@ fun AddTransactionBottomSheet(
     sheetState: SheetState,
     onDismiss: () -> Unit,
     onSave: (title: String, amount: String, type: TransactionType, category: String, paymentMethod: PaymentMethod, notes: String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    initialTitle: String = "",
+    initialAmount: String = "",
+    initialType: TransactionType = TransactionType.EXPENSE,
+    initialCategory: String = "Food",
+    initialMethod: PaymentMethod = PaymentMethod.UPI,
+    initialNotes: String = ""
 ) {
-    var title by rememberSaveable { mutableStateOf("") }
-    var amount by rememberSaveable { mutableStateOf("") }
-    var selectedType by rememberSaveable { mutableStateOf(TransactionType.EXPENSE) }
-    var selectedCategory by rememberSaveable { mutableStateOf("Food") }
-    var selectedMethod by rememberSaveable { mutableStateOf(PaymentMethod.UPI) }
-    var notes by rememberSaveable { mutableStateOf("") }
+    var title by rememberSaveable { mutableStateOf(initialTitle) }
+    var amount by rememberSaveable { mutableStateOf(initialAmount) }
+    var selectedType by rememberSaveable { mutableStateOf(initialType) }
+    var selectedCategory by rememberSaveable { mutableStateOf(initialCategory) }
+    var selectedMethod by rememberSaveable { mutableStateOf(initialMethod) }
+    var notes by rememberSaveable { mutableStateOf(initialNotes) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

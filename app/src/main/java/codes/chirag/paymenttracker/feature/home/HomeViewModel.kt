@@ -3,6 +3,7 @@ package codes.chirag.paymenttracker.feature.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import codes.chirag.paymenttracker.core.data.repository.PreferencesRepository
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
 import codes.chirag.paymenttracker.core.model.CategorySpending
@@ -29,7 +30,8 @@ data class HomeUiState(
 
 class HomeViewModel(
     txRepo: TransactionRepository,
-    profileRepo: UserProfileRepository
+    profileRepo: UserProfileRepository,
+    private val prefsRepo: PreferencesRepository
 ) : ViewModel() {
 
     val uiState: StateFlow<HomeUiState> = combine(
@@ -43,7 +45,6 @@ class HomeViewModel(
         val expense = transactions.filter { it.type == TransactionType.EXPENSE }.sumOf { it.amount }
         val balance = income - expense
 
-        // Today label matching DatabaseSeeder conventions
         val todayLabel = todayLabel()
         val spentToday = transactions
             .filter { it.type == TransactionType.EXPENSE && it.date == todayLabel }
@@ -53,7 +54,8 @@ class HomeViewModel(
         val dailyBudget = if (monthlyBudget > 0) monthlyBudget / daysInMonth else 0.0
         val safeToSpend = (dailyBudget - spentToday).coerceAtLeast(0.0)
 
-        // Category spending
+        // Category spending — read budgets from SharedPreferences
+        val categoryBudgets = prefsRepo.getCategoryBudgets()
         val categorySpending = transactions
             .filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.category }
@@ -61,13 +63,12 @@ class HomeViewModel(
                 CategorySpending(
                     category = cat,
                     amount   = txList.sumOf { it.amount },
-                    budget   = 0.0 // no per-category budget stored yet
+                    budget   = categoryBudgets[cat] ?: 0.0
                 )
             }
             .sortedByDescending { it.amount }
             .take(6)
 
-        // Weekly bar data — last 7 dates in ascending order
         val weeklySpending = buildWeeklyData(transactions)
 
         HomeUiState(
@@ -94,12 +95,10 @@ class HomeViewModel(
 
     private fun buildWeeklyData(transactions: List<Transaction>): List<WeeklyBarData> {
         val days = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-        // Group by date string and sum expenses; map to day abbreviations by order they appear
         val dateGroups = transactions
             .filter { it.type == TransactionType.EXPENSE }
             .groupBy { it.date }
 
-        // Take up to 7 distinct dates, most recent last
         val distinctDates = dateGroups.keys
             .sortedWith(Comparator { a, b -> compareDateStrings(a, b) })
             .takeLast(7)
@@ -112,7 +111,6 @@ class HomeViewModel(
         }
     }
 
-    /** Simple comparator for date strings: "Today" > "Yesterday" > "MMM d, yyyy" */
     private fun compareDateStrings(a: String, b: String): Int {
         fun rank(s: String) = when (s) {
             "Today"     -> Int.MAX_VALUE
@@ -123,7 +121,6 @@ class HomeViewModel(
     }
 
     private fun parseYYYYMMDD(s: String): Int {
-        // "Feb 26, 2026" → 20260226
         return try {
             val parts = s.replace(",", "").split(" ")
             val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
@@ -139,12 +136,14 @@ class HomeViewModel(
     companion object {
         fun factory(
             txRepo: TransactionRepository,
-            profileRepo: UserProfileRepository
+            profileRepo: UserProfileRepository,
+            prefsRepo: PreferencesRepository
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    HomeViewModel(txRepo, profileRepo) as T
+                    HomeViewModel(txRepo, profileRepo, prefsRepo) as T
             }
     }
 }
+

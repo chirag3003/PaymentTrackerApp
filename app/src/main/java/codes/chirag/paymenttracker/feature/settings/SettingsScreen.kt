@@ -84,6 +84,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun SettingsScreen(
     viewModel: SettingsViewModel,
+    onManageCategories: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -249,7 +250,7 @@ fun SettingsScreen(
                 SettingRowNavigation(
                     icon    = Icons.Outlined.Category,
                     label   = "Manage Categories",
-                    onClick = {}          // future: open category editor
+                    onClick = onManageCategories
                 )
                 SettingsDivider()
                 SettingRowNavigation(

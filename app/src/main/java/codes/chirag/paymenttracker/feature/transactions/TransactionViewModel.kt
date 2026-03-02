@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Calendar
 import java.util.UUID
 
 enum class DateFilter(val label: String) {
@@ -38,8 +39,11 @@ class TransactionViewModel(
                 tx.category.contains(query, ignoreCase = true)
             val matchesFilter = when (filter) {
                 DateFilter.ALL   -> true
-                DateFilter.TODAY -> tx.date == "Today"
-                DateFilter.WEEK  -> tx.date in listOf("Today", "Yesterday", "Feb 26, 2026", "Feb 25, 2026")
+                DateFilter.TODAY -> tx.date == todayLabel()
+                DateFilter.WEEK  -> {
+                    val weekDates = buildWeekDateSet()
+                    tx.date in weekDates || tx.date == "Today" || tx.date == "Yesterday"
+                }
                 DateFilter.MONTH -> true
             }
             matchesSearch && matchesFilter
@@ -81,9 +85,21 @@ class TransactionViewModel(
     // ── Helpers ──────────────────────────────────────────────────────────────
 
     private fun todayLabel(): String {
-        val cal = java.util.Calendar.getInstance()
+        val cal = Calendar.getInstance()
         val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-        return "${months[cal.get(java.util.Calendar.MONTH)]} ${cal.get(java.util.Calendar.DAY_OF_MONTH)}, ${cal.get(java.util.Calendar.YEAR)}"
+        return "${months[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.DAY_OF_MONTH)}, ${cal.get(Calendar.YEAR)}"
+    }
+
+    /** Returns a set of date label strings for the past 7 days (formatted as "MMM d, yyyy"). */
+    private fun buildWeekDateSet(): Set<String> {
+        val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+        val cal = Calendar.getInstance()
+        val dates = mutableSetOf<String>()
+        repeat(7) {
+            dates += "${months[cal.get(Calendar.MONTH)]} ${cal.get(Calendar.DAY_OF_MONTH)}, ${cal.get(Calendar.YEAR)}"
+            cal.add(Calendar.DAY_OF_MONTH, -1)
+        }
+        return dates
     }
 
     // ── Factory ──────────────────────────────────────────────────────────────

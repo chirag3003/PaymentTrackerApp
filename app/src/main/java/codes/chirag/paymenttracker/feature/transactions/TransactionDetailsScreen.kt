@@ -30,11 +30,14 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,9 +50,11 @@ import codes.chirag.paymenttracker.core.model.Transaction
 import codes.chirag.paymenttracker.core.model.TransactionType
 import codes.chirag.paymenttracker.core.utils.formatCurrency
 import codes.chirag.paymenttracker.core.utils.getCategoryMeta
+import codes.chirag.paymenttracker.feature.transactions.components.EditTransactionBottomSheet
 import codes.chirag.paymenttracker.ui.theme.ExpenseRed
 import codes.chirag.paymenttracker.ui.theme.IncomeGreen
 import codes.chirag.paymenttracker.ui.theme.OrangePrimary
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,9 +66,39 @@ fun TransactionDetailsScreen(
     modifier: Modifier = Modifier
 ) {
     var transaction by remember { mutableStateOf<Transaction?>(null) }
+    var refreshKey by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(transactionId) {
+    LaunchedEffect(transactionId, refreshKey) {
         transaction = viewModel.getById(transactionId)
+    }
+
+    var showEditSheet by remember { mutableStateOf(false) }
+    val editSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+
+    if (showEditSheet) {
+        EditTransactionBottomSheet(
+            transactionId = transactionId,
+            sheetState = editSheetState,
+            viewModel = viewModel,
+            onDismiss = {
+                scope.launch { editSheetState.hide() }.invokeOnCompletion {
+                    showEditSheet = false
+                }
+            },
+            onSaved = {
+                scope.launch { editSheetState.hide() }.invokeOnCompletion {
+                    showEditSheet = false
+                    refreshKey++
+                }
+            },
+            onDeleted = {
+                scope.launch { editSheetState.hide() }.invokeOnCompletion {
+                    showEditSheet = false
+                    onNavigateBack()
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -87,7 +122,7 @@ fun TransactionDetailsScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = onEdit) {
+                    TextButton(onClick = { showEditSheet = true }) {
                         Text(
                             text = "Edit",
                             color = MaterialTheme.colorScheme.primary,

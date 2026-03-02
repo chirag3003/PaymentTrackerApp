@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import codes.chirag.paymenttracker.PREFS_NAME
+import codes.chirag.paymenttracker.core.data.repository.PreferencesRepository
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
 import codes.chirag.paymenttracker.core.database.entities.UserProfileEntity
@@ -24,7 +25,8 @@ import java.util.Locale
 class SettingsViewModel(
     private val profileRepo: UserProfileRepository,
     private val txRepo: TransactionRepository,
-    private val prefs: SharedPreferences
+    private val prefs: SharedPreferences,
+    private val prefsRepo: PreferencesRepository
 ) : ViewModel() {
 
     // ── Profile ───────────────────────────────────────────────────────────────
@@ -88,23 +90,22 @@ class SettingsViewModel(
     fun setBiometricLock(enabled: Boolean) {
         prefs.edit()
             .putBoolean("biometric_lock", enabled)
-            // If disabling, clear the persisted lock flag so the app doesn't
-            // show the lock screen on next launch.
             .apply { if (!enabled) putBoolean("needs_unlock", false) }
             .apply()
     }
 
-    // ── Custom categories (SharedPreferences CSV) ─────────────────────────────
+    // ── Custom categories (delegated to PreferencesRepository) ───────────────
 
-    fun getCustomCategories(): List<String> {
-        val csv = prefs.getString("custom_categories", "") ?: ""
-        return if (csv.isBlank()) emptyList()
-               else csv.split(",").map { it.trim() }.filter { it.isNotBlank() }
-    }
+    fun getCustomCategories(): List<String> = prefsRepo.getCustomCategories()
 
-    fun saveCustomCategories(categories: List<String>) {
-        prefs.edit().putString("custom_categories", categories.joinToString(",")).apply()
-    }
+    fun saveCustomCategories(categories: List<String>) = prefsRepo.saveCustomCategories(categories)
+
+    // ── Category budgets ──────────────────────────────────────────────────────
+
+    fun getCategoryBudgets(): Map<String, Double> = prefsRepo.getCategoryBudgets()
+
+    fun setCategoryBudget(category: String, budget: Double) =
+        prefsRepo.setCategoryBudget(category, budget)
 
     // ── CSV export ────────────────────────────────────────────────────────────
 
@@ -143,14 +144,17 @@ class SettingsViewModel(
         fun factory(
             profileRepo: UserProfileRepository,
             txRepo: TransactionRepository,
-            context: Context
+            context: Context,
+            prefsRepo: PreferencesRepository? = null
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-                    return SettingsViewModel(profileRepo, txRepo, prefs) as T
+                    val repo = prefsRepo ?: PreferencesRepository(context)
+                    return SettingsViewModel(profileRepo, txRepo, prefs, repo) as T
                 }
             }
     }
 }
+

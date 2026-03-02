@@ -117,3 +117,31 @@ data class Goal(
     /** True when the goal has been fully funded. */
     val isCompleted: Boolean get() = savedAmount >= targetAmount
 }
+
+/**
+ * Recurring billing frequency.
+ */
+enum class BillingFrequency { WEEKLY, MONTHLY, YEARLY }
+
+/**
+ * A recurring subscription or bill tracked by the user.
+ *
+ * @param id            Unique identifier.
+ * @param name          Subscription name (e.g. "Netflix", "Gym").
+ * @param amount        Billing amount per cycle.
+ * @param frequency     How often billing occurs.
+ * @param nextDueDate   Display string for the next due date (e.g. "Mar 10, 2026").
+ * @param category      Category label.
+ * @param paymentMethod How the subscription is charged.
+ * @param isActive      Whether the subscription is currently active.
+ */
+data class Subscription(
+    val id: String,
+    val name: String,
+    val amount: Double,
+    val frequency: BillingFrequency,
+    val nextDueDate: String,
+    val category: String,
+    val paymentMethod: PaymentMethod = PaymentMethod.CARD,
+    val isActive: Boolean = true
+)

@@ -29,6 +29,9 @@ sealed interface Route {
 sealed interface HomeRoute {
     @Serializable
     data object Home : HomeRoute
+
+    @Serializable
+    data object Insights : HomeRoute
 }
 
 // Transactions feature routes
@@ -39,8 +42,6 @@ sealed interface TransactionsRoute {
     @Serializable
     data class TransactionDetails(val transactionId: String) : TransactionsRoute
 
-    @Serializable
-    data class EditTransaction(val transactionId: String) : TransactionsRoute
 }
 
 // Goals feature routes
@@ -56,6 +57,9 @@ sealed interface GoalsRoute {
 sealed interface SettingsRoute {
     @Serializable
     data object SettingsHome : SettingsRoute
+
+    @Serializable
+    data object ManageCategories : SettingsRoute
 }
 
 // Onboarding feature routes

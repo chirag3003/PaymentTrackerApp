@@ -15,11 +15,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -31,11 +30,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.TabRowDefaults
+import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -45,10 +49,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import codes.chirag.paymenttracker.core.model.Subscription
 import codes.chirag.paymenttracker.core.model.Transaction
 import codes.chirag.paymenttracker.core.model.TransactionType
 import codes.chirag.paymenttracker.core.utils.formatCurrency
-import codes.chirag.paymenttracker.feature.transactions.components.AddTransactionBottomSheet
+import codes.chirag.paymenttracker.feature.transactions.components.AddSubscriptionBottomSheet
+import codes.chirag.paymenttracker.feature.transactions.components.SubscriptionListItem
 import codes.chirag.paymenttracker.feature.transactions.components.TransactionListItem
 import codes.chirag.paymenttracker.ui.theme.Background
 import codes.chirag.paymenttracker.ui.theme.BorderColor
@@ -60,6 +66,7 @@ import codes.chirag.paymenttracker.ui.theme.OnPrimary
 import codes.chirag.paymenttracker.ui.theme.OnSurfaceMuted
 import codes.chirag.paymenttracker.ui.theme.OrangePrimary
 import codes.chirag.paymenttracker.ui.theme.SurfaceL1
+import codes.chirag.paymenttracker.ui.theme.SurfaceL2
 import codes.chirag.paymenttracker.ui.theme.SurfaceL3
 import kotlinx.coroutines.launch
 
@@ -67,6 +74,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun TransactionsScreen(
     viewModel: TransactionViewModel,
+    subscriptionViewModel: SubscriptionViewModel,
     onTransactionClick: (String) -> Unit = {},
     contentPadding: PaddingValues = PaddingValues(),
     modifier: Modifier = Modifier
@@ -74,26 +82,30 @@ fun TransactionsScreen(
     val filtered by viewModel.filtered.collectAsState()
     val searchQuery by viewModel.searchQuery.collectAsState()
     val activeFilter by viewModel.activeFilter.collectAsState()
-
-    var showAddSheet by rememberSaveable { mutableStateOf(false) }
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val scope = rememberCoroutineScope()
+    val subscriptions by subscriptionViewModel.subscriptions.collectAsState()
 
     // Group transactions by date
     val grouped = filtered.groupBy { it.date }
+
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+
+    // Add Subscription sheet state
+    var showAddSubSheet by rememberSaveable { mutableStateOf(false) }
+    val addSubSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         modifier = modifier,
         containerColor = Background,
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showAddSheet = true },
-                containerColor = OrangePrimary,
-                contentColor = OnPrimary,
-                shape = CircleShape,
-                modifier = Modifier.size(56.dp)
-            ) {
-                Icon(imageVector = Icons.Filled.Add, contentDescription = "Add Transaction")
+            if (selectedTab == 1) {
+                FloatingActionButton(
+                    onClick = { showAddSubSheet = true },
+                    containerColor = OrangePrimary,
+                    contentColor = OnPrimary
+                ) {
+                    Icon(Icons.Outlined.Add, contentDescription = "Add Subscription")
+                }
             }
         }
     ) { _ ->
@@ -116,96 +128,197 @@ fun TransactionsScreen(
                 )
             }
 
-            // Search bar
+            // Segment toggle: Transactions | Recurring
             item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { viewModel.searchQuery.value = it },
-                    placeholder = { Text("Search transactions...", color = OnSurfaceMuted) },
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Search,
-                            contentDescription = null,
-                            tint = OnSurfaceMuted,
-                            modifier = Modifier.size(20.dp)
+                TabRow(
+                    selectedTabIndex = selectedTab,
+                    containerColor = Background,
+                    contentColor = OrangePrimary,
+                    indicator = { tabPositions ->
+                        TabRowDefaults.SecondaryIndicator(
+                            modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                            color = OrangePrimary
                         )
                     },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = OnBackground,
-                        unfocusedTextColor = OnBackground,
-                        focusedBorderColor = OrangePrimary,
-                        unfocusedBorderColor = BorderColor,
-                        cursorColor = OrangePrimary,
-                        focusedContainerColor = SurfaceL3,
-                        unfocusedContainerColor = SurfaceL3
-                    )
-                )
-            }
-
-            item { Spacer(modifier = Modifier.height(12.dp)) }
-
-            // Filter chips
-            item {
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 20.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .padding(horizontal = 20.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(SurfaceL2)
                 ) {
-                    items(DateFilter.entries) { filter ->
-                        FilterChip(
-                            selected = activeFilter == filter,
-                            onClick = { viewModel.activeFilter.value = filter },
-                            label = { Text(filter.label) },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = OrangePrimary,
-                                selectedLabelColor = OnPrimary,
-                                containerColor = SurfaceL3,
-                                labelColor = OnSurfaceMuted
-                            ),
-                            border = FilterChipDefaults.filterChipBorder(
-                                enabled = true,
-                                selected = activeFilter == filter,
-                                borderColor = DividerColor,
-                                selectedBorderColor = OrangePrimary
+                    Tab(
+                        selected = selectedTab == 0,
+                        onClick = { selectedTab = 0 },
+                        text = {
+                            Text(
+                                "Transactions",
+                                color = if (selectedTab == 0) OrangePrimary else OnSurfaceMuted
                             )
-                        )
-                    }
+                        }
+                    )
+                    Tab(
+                        selected = selectedTab == 1,
+                        onClick = { selectedTab = 1 },
+                        text = {
+                            Text(
+                                "Recurring",
+                                color = if (selectedTab == 1) OrangePrimary else OnSurfaceMuted
+                            )
+                        }
+                    )
                 }
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
-            item { Spacer(modifier = Modifier.height(16.dp)) }
-
-            if (grouped.isEmpty()) {
+            // ── Transactions tab ────────────────────────────────────────────
+            if (selectedTab == 0) {
+                // Search bar
                 item {
-                    Box(
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { viewModel.searchQuery.value = it },
+                        placeholder = { Text("Search transactions...", color = OnSurfaceMuted) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = Icons.Outlined.Search,
+                                contentDescription = null,
+                                tint = OnSurfaceMuted,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            imeAction = ImeAction.Search
+                        ),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No transactions found",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = OnSurfaceMuted
+                            .padding(horizontal = 20.dp),
+                        shape = RoundedCornerShape(14.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = OnBackground,
+                            unfocusedTextColor = OnBackground,
+                            focusedBorderColor = OrangePrimary,
+                            unfocusedBorderColor = BorderColor,
+                            cursorColor = OrangePrimary,
+                            focusedContainerColor = SurfaceL3,
+                            unfocusedContainerColor = SurfaceL3
                         )
+                    )
+                }
+
+                item { Spacer(modifier = Modifier.height(12.dp)) }
+
+                // Filter chips
+                item {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(DateFilter.entries) { filter ->
+                            FilterChip(
+                                selected = activeFilter == filter,
+                                onClick = { viewModel.activeFilter.value = filter },
+                                label = { Text(filter.label) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = OrangePrimary,
+                                    selectedLabelColor = OnPrimary,
+                                    containerColor = SurfaceL3,
+                                    labelColor = OnSurfaceMuted
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = activeFilter == filter,
+                                    borderColor = DividerColor,
+                                    selectedBorderColor = OrangePrimary
+                                )
+                            )
+                        }
                     }
                 }
-            } else {
-                grouped.forEach { (date, txList) ->
-                    item(key = "header_$date") {
-                        DateGroupHeader(
-                            date = date,
-                            transactions = txList,
-                            modifier = Modifier.padding(horizontal = 20.dp)
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+
+                item { Spacer(modifier = Modifier.height(16.dp)) }
+
+                if (grouped.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No transactions found",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = OnSurfaceMuted
+                            )
+                        }
                     }
-                    item(key = "group_$date") {
+                } else {
+                    grouped.forEach { (date, txList) ->
+                        item(key = "header_$date") {
+                            DateGroupHeader(
+                                date = date,
+                                transactions = txList,
+                                modifier = Modifier.padding(horizontal = 20.dp)
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        item(key = "group_$date") {
+                            Box(
+                                modifier = Modifier
+                                    .padding(horizontal = 20.dp)
+                                    .clip(RoundedCornerShape(18.dp))
+                                    .background(SurfaceL1)
+                            ) {
+                                Column {
+                                    txList.forEachIndexed { index, tx ->
+                                        TransactionListItem(
+                                            transaction = tx,
+                                            onClick = { onTransactionClick(tx.id) }
+                                        )
+                                        if (index < txList.lastIndex) {
+                                            HorizontalDivider(
+                                                modifier = Modifier.padding(start = 74.dp),
+                                                color = DividerColor,
+                                                thickness = 0.5.dp
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(16.dp))
+                        }
+                    }
+                }
+            }
+
+            // ── Recurring tab ───────────────────────────────────────────────
+            if (selectedTab == 1) {
+                if (subscriptions.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "No subscriptions yet",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = OnSurfaceMuted
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Tap + to add a recurring bill",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnSurfaceMuted
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    item {
                         Box(
                             modifier = Modifier
                                 .padding(horizontal = 20.dp)
@@ -213,14 +326,15 @@ fun TransactionsScreen(
                                 .background(SurfaceL1)
                         ) {
                             Column {
-                                txList.forEachIndexed { index, tx ->
-                                    TransactionListItem(
-                                        transaction = tx,
-                                        onClick = { onTransactionClick(tx.id) }
+                                subscriptions.forEachIndexed { index, sub ->
+                                    SubscriptionListItem(
+                                        subscription = sub,
+                                        onToggleActive = { subscriptionViewModel.toggleActive(it) },
+                                        onDelete = { subscriptionViewModel.delete(it) }
                                     )
-                                    if (index < txList.lastIndex) {
+                                    if (index < subscriptions.lastIndex) {
                                         HorizontalDivider(
-                                            modifier = Modifier.padding(start = 74.dp),
+                                            modifier = Modifier.padding(start = 68.dp),
                                             color = DividerColor,
                                             thickness = 0.5.dp
                                         )
@@ -228,25 +342,25 @@ fun TransactionsScreen(
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
                     }
                 }
             }
         }
     }
 
-    if (showAddSheet) {
-        AddTransactionBottomSheet(
-            sheetState = sheetState,
+    // Add Subscription sheet
+    if (showAddSubSheet) {
+        AddSubscriptionBottomSheet(
+            sheetState = addSubSheetState,
             onDismiss = {
-                scope.launch { sheetState.hide() }.invokeOnCompletion {
-                    showAddSheet = false
+                scope.launch { addSubSheetState.hide() }.invokeOnCompletion {
+                    showAddSubSheet = false
                 }
             },
-            onSave = { title, amount, type, category, paymentMethod, notes ->
-                viewModel.add(title, amount, type, category, paymentMethod, notes)
-                scope.launch { sheetState.hide() }.invokeOnCompletion {
-                    showAddSheet = false
+            onSave = { name, amount, frequency, nextDueDate, category, paymentMethod ->
+                subscriptionViewModel.add(name, amount, frequency, nextDueDate, category, paymentMethod)
+                scope.launch { addSubSheetState.hide() }.invokeOnCompletion {
+                    showAddSubSheet = false
                 }
             }
         )
