@@ -152,6 +152,7 @@ data class Subscription(
     val id: String,
     val name: String,
     val amount: Double,
+    val type: TransactionType,
     val frequency: BillingFrequency,
     val nextDueDate: String,
     val category: String,

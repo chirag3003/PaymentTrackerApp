@@ -5,6 +5,7 @@ import codes.chirag.paymenttracker.core.database.entities.SubscriptionEntity
 import codes.chirag.paymenttracker.core.model.BillingFrequency
 import codes.chirag.paymenttracker.core.model.PaymentMethod
 import codes.chirag.paymenttracker.core.model.Subscription
+import codes.chirag.paymenttracker.core.model.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -32,6 +33,7 @@ private fun SubscriptionEntity.toDomain() = Subscription(
     id            = id,
     name          = name,
     amount        = amount,
+    type          = runCatching { TransactionType.valueOf(type) }.getOrDefault(TransactionType.EXPENSE),
     frequency     = runCatching { BillingFrequency.valueOf(frequency) }.getOrDefault(BillingFrequency.MONTHLY),
     nextDueDate   = nextDueDate,
     category      = category,
@@ -43,6 +45,7 @@ private fun Subscription.toEntity() = SubscriptionEntity(
     id            = id,
     name          = name,
     amount        = amount,
+    type          = type.name,
     frequency     = frequency.name,
     nextDueDate   = nextDueDate,
     category      = category,

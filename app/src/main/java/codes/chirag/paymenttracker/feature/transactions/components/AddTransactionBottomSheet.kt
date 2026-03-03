@@ -262,47 +262,51 @@ fun AddTransactionBottomSheet(
             Spacer(modifier = Modifier.height(12.dp))
 
             // ── Date picker row ───────────────────────────────────────────────
-            LabeledField("Date") {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(SurfaceL3)
-                        .border(0.5.dp, BorderColor, RoundedCornerShape(12.dp))
-                        .clickable {
-                            val cal = Calendar.getInstance()
-                            DatePickerDialog(
-                                context,
-                                { _, year, month, day ->
-                                    val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-                                    selectedDate = "${months[month]} $day, $year"
-                                },
-                                cal.get(Calendar.YEAR),
-                                cal.get(Calendar.MONTH),
-                                cal.get(Calendar.DAY_OF_MONTH)
-                            ).apply {
-                                datePicker.maxDate = System.currentTimeMillis()
-                            }.show()
+            AnimatedVisibility(visible = !isRecurring, enter = expandVertically(), exit = shrinkVertically()) {
+                Column {
+                    LabeledField("Date") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(SurfaceL3)
+                                .border(0.5.dp, BorderColor, RoundedCornerShape(12.dp))
+                                .clickable {
+                                    val cal = Calendar.getInstance()
+                                    DatePickerDialog(
+                                        context,
+                                        { _, year, month, day ->
+                                            val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+                                            selectedDate = "${months[month]} $day, $year"
+                                        },
+                                        cal.get(Calendar.YEAR),
+                                        cal.get(Calendar.MONTH),
+                                        cal.get(Calendar.DAY_OF_MONTH)
+                                    ).apply {
+                                        datePicker.maxDate = System.currentTimeMillis()
+                                    }.show()
+                                }
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (selectedDate == todayDisplayLabel()) "Today  ($selectedDate)" else selectedDate,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = OnBackground
+                            )
+                            Icon(
+                                imageVector = Icons.Outlined.CalendarMonth,
+                                contentDescription = "Pick date",
+                                tint = OrangePrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = if (selectedDate == todayDisplayLabel()) "Today  ($selectedDate)" else selectedDate,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = OnBackground
-                    )
-                    Icon(
-                        imageVector = Icons.Outlined.CalendarMonth,
-                        contentDescription = "Pick date",
-                        tint = OrangePrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
 
             // ── Category chips ────────────────────────────────────────────────
             LabeledField("Category") {

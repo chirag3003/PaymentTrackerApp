@@ -422,6 +422,7 @@ fun PaymentTrackerApp(
                                         id            = UUID.randomUUID().toString(),
                                         name          = title,
                                         amount        = amount,
+                                        type          = type,
                                         frequency     = recurring.frequency,
                                         nextDueDate   = recurring.nextDueDate,
                                         category      = category,

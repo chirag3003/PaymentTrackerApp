@@ -7,6 +7,7 @@ import codes.chirag.paymenttracker.core.data.repository.SubscriptionRepository
 import codes.chirag.paymenttracker.core.model.BillingFrequency
 import codes.chirag.paymenttracker.core.model.PaymentMethod
 import codes.chirag.paymenttracker.core.model.Subscription
+import codes.chirag.paymenttracker.core.model.TransactionType
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -24,6 +25,7 @@ class SubscriptionViewModel(
     fun add(
         name: String,
         amount: String,
+        type: TransactionType,
         frequency: BillingFrequency,
         nextDueDate: String,
         category: String,
@@ -36,11 +38,41 @@ class SubscriptionViewModel(
                     id            = UUID.randomUUID().toString(),
                     name          = name.trim(),
                     amount        = amt,
+                    type          = type,
                     frequency     = frequency,
                     nextDueDate   = nextDueDate.ifBlank { nextMonthLabel() },
                     category      = category,
                     paymentMethod = paymentMethod,
                     isActive      = true
+                )
+            )
+        }
+    }
+
+    fun updateSubscription(
+        id: String,
+        name: String,
+        amount: String,
+        type: TransactionType,
+        frequency: BillingFrequency,
+        nextDueDate: String,
+        category: String,
+        paymentMethod: PaymentMethod,
+        isActive: Boolean
+    ) {
+        val amt = amount.toDoubleOrNull() ?: return
+        viewModelScope.launch {
+            repo.update(
+                Subscription(
+                    id            = id,
+                    name          = name.trim(),
+                    amount        = amt,
+                    type          = type,
+                    frequency     = frequency,
+                    nextDueDate   = nextDueDate.ifBlank { nextMonthLabel() },
+                    category      = category,
+                    paymentMethod = paymentMethod,
+                    isActive      = isActive
                 )
             )
         }

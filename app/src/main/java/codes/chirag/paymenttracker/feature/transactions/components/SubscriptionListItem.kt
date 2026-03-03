@@ -28,9 +28,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import codes.chirag.paymenttracker.core.model.BillingFrequency
 import codes.chirag.paymenttracker.core.model.Subscription
+import codes.chirag.paymenttracker.core.model.TransactionType
 import codes.chirag.paymenttracker.core.utils.formatCurrency
 import codes.chirag.paymenttracker.core.utils.getCategoryMeta
 import codes.chirag.paymenttracker.ui.theme.ExpenseRed
+import codes.chirag.paymenttracker.ui.theme.IncomeGreen
 import codes.chirag.paymenttracker.ui.theme.OnBackground
 import codes.chirag.paymenttracker.ui.theme.OnSurfaceMuted
 import codes.chirag.paymenttracker.ui.theme.OrangePrimary
@@ -84,6 +86,9 @@ fun SubscriptionListItem(
         DueStatus.OK       -> ""
     }
 
+    val amountColor = if (subscription.type == TransactionType.INCOME) IncomeGreen else ExpenseRed
+    val amountPrefix = if (subscription.type == TransactionType.INCOME) "+" else "-"
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -124,9 +129,9 @@ fun SubscriptionListItem(
         // Amount + period badge
         Column(horizontalAlignment = Alignment.End) {
             Text(
-                text = formatCurrency(subscription.amount),
+                text = "$amountPrefix${formatCurrency(subscription.amount)}",
                 style = MaterialTheme.typography.bodyMedium,
-                color = if (subscription.isActive) OnBackground else OnSurfaceMuted,
+                color = amountColor,
                 fontWeight = FontWeight.SemiBold
             )
             Box(

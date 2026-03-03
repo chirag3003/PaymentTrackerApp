@@ -43,8 +43,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import codes.chirag.paymenttracker.core.model.BillingFrequency
 import codes.chirag.paymenttracker.core.model.PaymentMethod
+import codes.chirag.paymenttracker.core.model.Subscription
+import codes.chirag.paymenttracker.core.model.TransactionType
 import codes.chirag.paymenttracker.ui.theme.Background
 import codes.chirag.paymenttracker.ui.theme.BorderColor
+import codes.chirag.paymenttracker.ui.theme.IncomeGreen
 import codes.chirag.paymenttracker.ui.theme.OnBackground
 import codes.chirag.paymenttracker.ui.theme.OnPrimary
 import codes.chirag.paymenttracker.ui.theme.OnSurfaceMuted
@@ -66,18 +69,21 @@ fun AddSubscriptionBottomSheet(
     onSave: (
         name: String,
         amount: String,
+        type: TransactionType,
         frequency: BillingFrequency,
         nextDueDate: String,
         category: String,
         paymentMethod: PaymentMethod
-    ) -> Unit
+    ) -> Unit,
+    initialSubscription: Subscription? = null
 ) {
-    var name         by rememberSaveable { mutableStateOf("") }
-    var amount       by rememberSaveable { mutableStateOf("") }
-    var frequency    by rememberSaveable { mutableStateOf(BillingFrequency.MONTHLY) }
-    var nextDueDate  by rememberSaveable { mutableStateOf(defaultNextDueDate()) }
-    var category     by rememberSaveable { mutableStateOf(subscriptionCategories.first()) }
-    var paymentMethod by rememberSaveable { mutableStateOf(PaymentMethod.CARD) }
+    var name         by rememberSaveable { mutableStateOf(initialSubscription?.name ?: "") }
+    var amount       by rememberSaveable { mutableStateOf(initialSubscription?.amount?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() } ?: "") }
+    var type         by rememberSaveable { mutableStateOf(initialSubscription?.type ?: TransactionType.EXPENSE) }
+    var frequency    by rememberSaveable { mutableStateOf(initialSubscription?.frequency ?: BillingFrequency.MONTHLY) }
+    var nextDueDate  by rememberSaveable { mutableStateOf(initialSubscription?.nextDueDate ?: defaultNextDueDate()) }
+    var category     by rememberSaveable { mutableStateOf(initialSubscription?.category ?: subscriptionCategories.first()) }
+    var paymentMethod by rememberSaveable { mutableStateOf(initialSubscription?.paymentMethod ?: PaymentMethod.CARD) }
 
     val isValid = name.isNotBlank() && amount.toDoubleOrNull() != null
 
@@ -100,7 +106,7 @@ fun AddSubscriptionBottomSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Add Subscription",
+                    text = if (initialSubscription != null) "Edit Subscription" else "Add Subscription",
                     style = MaterialTheme.typography.titleMedium,
                     color = OnBackground,
                     fontWeight = FontWeight.SemiBold
@@ -113,6 +119,14 @@ fun AddSubscriptionBottomSheet(
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Type toggle
+            TypeToggle(
+                selected = type,
+                onSelect = { type = it }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -248,7 +262,7 @@ fun AddSubscriptionBottomSheet(
             // Save button
             Button(
                 onClick = {
-                    onSave(name.trim(), amount, frequency, nextDueDate, category, paymentMethod)
+                    onSave(name.trim(), amount, type, frequency, nextDueDate, category, paymentMethod)
                 },
                 enabled = isValid,
                 modifier = Modifier
@@ -261,7 +275,46 @@ fun AddSubscriptionBottomSheet(
                     disabledContainerColor = SurfaceL3
                 )
             ) {
-                Text("Save Subscription", style = MaterialTheme.typography.titleSmall)
+                Text(if (initialSubscription != null) "Update Subscription" else "Save Subscription", style = MaterialTheme.typography.titleSmall)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TypeToggle(
+    selected: TransactionType,
+    onSelect: (TransactionType) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Background)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        TransactionType.entries.forEach { t ->
+            val isSelected = t == selected
+            val bgColor = when {
+                isSelected && t == TransactionType.EXPENSE -> OrangePrimary
+                isSelected && t == TransactionType.INCOME  -> IncomeGreen
+                else -> Background
+            }
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(bgColor)
+                    .clickable { onSelect(t) }
+                    .padding(vertical = 10.dp),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                Text(
+                    text = t.name.lowercase().replaceFirstChar { it.uppercase() },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (isSelected) OnPrimary else OnSurfaceMuted
+                )
             }
         }
     }

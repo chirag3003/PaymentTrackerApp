@@ -56,6 +56,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -120,6 +121,7 @@ fun TransactionsScreen(
 
     // Add Subscription sheet state
     var showAddSubSheet by rememberSaveable { mutableStateOf(false) }
+    var subscriptionToEdit by remember { mutableStateOf<Subscription?>(null) }
     val addSubSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // Advanced filter sheet state
@@ -134,7 +136,10 @@ fun TransactionsScreen(
         floatingActionButton = {
             if (selectedTab == 1) {
                 FloatingActionButton(
-                    onClick = { showAddSubSheet = true },
+                    onClick = {
+                        subscriptionToEdit = null
+                        showAddSubSheet = true
+                    },
                     containerColor = OrangePrimary,
                     contentColor = OnPrimary
                 ) {
@@ -398,7 +403,11 @@ fun TransactionsScreen(
                                     SubscriptionListItem(
                                         subscription = sub,
                                         onToggleActive = { subscriptionViewModel.toggleActive(it) },
-                                        onDelete = { subscriptionViewModel.delete(it) }
+                                        onDelete = { subscriptionViewModel.delete(it) },
+                                        modifier = Modifier.clickable {
+                                            subscriptionToEdit = sub
+                                            showAddSubSheet = true
+                                        }
                                     )
                                     if (index < subscriptions.lastIndex) {
                                         HorizontalDivider(
@@ -425,12 +434,28 @@ fun TransactionsScreen(
                     showAddSubSheet = false
                 }
             },
-            onSave = { name, amount, frequency, nextDueDate, category, paymentMethod ->
-                subscriptionViewModel.add(name, amount, frequency, nextDueDate, category, paymentMethod)
+            onSave = { name, amount, type, frequency, nextDueDate, category, paymentMethod ->
+                val editSub = subscriptionToEdit
+                if (editSub != null) {
+                    subscriptionViewModel.updateSubscription(
+                        id = editSub.id,
+                        name = name,
+                        amount = amount,
+                        type = type,
+                        frequency = frequency,
+                        nextDueDate = nextDueDate,
+                        category = category,
+                        paymentMethod = paymentMethod,
+                        isActive = editSub.isActive
+                    )
+                } else {
+                    subscriptionViewModel.add(name, amount, type, frequency, nextDueDate, category, paymentMethod)
+                }
                 scope.launch { addSubSheetState.hide() }.invokeOnCompletion {
                     showAddSubSheet = false
                 }
-            }
+            },
+            initialSubscription = subscriptionToEdit
         )
     }
 
