@@ -2,4 +2,5 @@
 <paths>
     <external-files-path name="exports" path="." />
     <files-path name="exports_internal" path="." />
+    <cache-path name="cache_images" path="." />
 </paths>

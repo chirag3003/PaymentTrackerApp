@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import codes.chirag.paymenttracker.PREFS_NAME
 import codes.chirag.paymenttracker.core.data.repository.PreferencesRepository
+import codes.chirag.paymenttracker.core.data.repository.SecurePreferencesRepository
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
 import codes.chirag.paymenttracker.core.database.entities.UserProfileEntity
@@ -26,7 +27,8 @@ class SettingsViewModel(
     private val profileRepo: UserProfileRepository,
     private val txRepo: TransactionRepository,
     private val prefs: SharedPreferences,
-    private val prefsRepo: PreferencesRepository
+    private val prefsRepo: PreferencesRepository,
+    private val securePrefs: SecurePreferencesRepository
 ) : ViewModel() {
 
     // ── Profile ───────────────────────────────────────────────────────────────
@@ -107,6 +109,17 @@ class SettingsViewModel(
     fun setCategoryBudget(category: String, budget: Double) =
         prefsRepo.setCategoryBudget(category, budget)
 
+    // ── AI Configuration ──────────────────────────────────────────────────────
+
+    fun getActiveAiModel(): String = securePrefs.getActiveAiModel()
+    fun setActiveAiModel(model: String) = securePrefs.setActiveAiModel(model)
+
+    fun getGeminiApiKey(): String = securePrefs.getGeminiApiKey()
+    fun setGeminiApiKey(key: String) = securePrefs.setGeminiApiKey(key)
+
+    fun getAnthropicApiKey(): String = securePrefs.getAnthropicApiKey()
+    fun setAnthropicApiKey(key: String) = securePrefs.setAnthropicApiKey(key)
+
     // ── CSV export ────────────────────────────────────────────────────────────
 
     fun exportCsv(context: Context) {
@@ -152,7 +165,8 @@ class SettingsViewModel(
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
                     val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
                     val repo = prefsRepo ?: PreferencesRepository(context)
-                    return SettingsViewModel(profileRepo, txRepo, prefs, repo) as T
+                    val secureRepo = SecurePreferencesRepository(context)
+                    return SettingsViewModel(profileRepo, txRepo, prefs, repo, secureRepo) as T
                 }
             }
     }

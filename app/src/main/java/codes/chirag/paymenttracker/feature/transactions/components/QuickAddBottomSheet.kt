@@ -1,5 +1,6 @@
 package codes.chirag.paymenttracker.feature.transactions.components
 
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -42,11 +43,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import codes.chirag.paymenttracker.core.model.PaymentMethod
 import codes.chirag.paymenttracker.core.model.TransactionType
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.rememberCoroutineScope
+import codes.chirag.paymenttracker.core.data.repository.AiService
 import codes.chirag.paymenttracker.core.utils.QuickAddParser
+import kotlinx.coroutines.launch
 import codes.chirag.paymenttracker.ui.theme.BorderColor
 import codes.chirag.paymenttracker.ui.theme.DividerColor
 import codes.chirag.paymenttracker.ui.theme.OnBackground
@@ -79,10 +85,14 @@ fun QuickAddBottomSheet(
         paymentMethod: PaymentMethod,
         notes: String
     ) -> Unit,
+    aiService: AiService,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var inputText by rememberSaveable { mutableStateOf("") }
-    val isValid = inputText.isNotBlank()
+    var isAnalyzing by rememberSaveable { mutableStateOf(false) }
+    val isValid = inputText.isNotBlank() && !isAnalyzing
+    val scope = rememberCoroutineScope()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -232,15 +242,30 @@ fun QuickAddBottomSheet(
             Button(
                 onClick = {
                     if (isValid) {
-                        val parsed = QuickAddParser.parse(inputText)
-                        onParsed(
-                            parsed.title,
-                            if (parsed.amount > 0) parsed.amount.toString() else "",
-                            parsed.type,
-                            parsed.category,
-                            parsed.paymentMethod,
-                            inputText // original text goes into notes
-                        )
+                        isAnalyzing = true
+                        scope.launch {
+                            var parsed: codes.chirag.paymenttracker.core.utils.ParsedTransaction? = null
+                            try {
+                                parsed = aiService.parseText(inputText)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                Toast.makeText(context, "AI Error: ${e.message}", Toast.LENGTH_LONG).show()
+                            }
+                            
+                            if (parsed == null) {
+                                parsed = QuickAddParser.parse(inputText)
+                            }
+                            
+                            onParsed(
+                                parsed.title,
+                                if (parsed.amount > 0) parsed.amount.toString() else "",
+                                parsed.type,
+                                parsed.category,
+                                parsed.paymentMethod,
+                                inputText // original text goes into notes
+                            )
+                            isAnalyzing = false
+                        }
                     }
                 },
                 enabled = isValid,
@@ -255,17 +280,31 @@ fun QuickAddBottomSheet(
                     disabledContentColor = OnSurfaceMuted
                 )
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.AutoAwesome,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(
-                    text = "Parse & Add",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isAnalyzing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = OnPrimary,
+                        strokeWidth = 2.dp
+                    )
+                    Spacer(modifier = Modifier.size(12.dp))
+                    Text(
+                        text = "Analyzing...",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Outlined.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.size(8.dp))
+                    Text(
+                        text = "Parse & Add",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
         }
     }

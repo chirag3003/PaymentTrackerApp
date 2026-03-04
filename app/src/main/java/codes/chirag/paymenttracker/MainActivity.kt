@@ -1,7 +1,10 @@
 package codes.chirag.paymenttracker
 
 import android.content.Context
+import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.FragmentActivity
@@ -80,6 +83,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import codes.chirag.paymenttracker.core.biometric.BiometricLockManager
 import codes.chirag.paymenttracker.core.data.repository.GoalRepository
+import codes.chirag.paymenttracker.core.data.repository.AiService
+import codes.chirag.paymenttracker.core.data.repository.SecurePreferencesRepository
+import codes.chirag.paymenttracker.core.utils.ImageUtils
 import codes.chirag.paymenttracker.core.data.repository.SubscriptionRepository
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
@@ -155,6 +161,8 @@ fun PaymentTrackerApp(
 ) {
     val context = LocalContext.current
     val prefs   = remember { context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE) }
+    val securePrefs = remember { SecurePreferencesRepository(context) }
+    val aiService = remember { AiService(securePrefs) }
     val coroutineScope = rememberCoroutineScope()
 
     var showOnboarding by remember {
@@ -240,6 +248,10 @@ fun PaymentTrackerApp(
     // Key to force re-composition of AddSheet with fresh prefill values
     var prefillKey      by rememberSaveable { mutableStateOf(0) }
 
+    // State for Image Scanning
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    var isAnalyzingImage by rememberSaveable { mutableStateOf(false) }
+
     val addSheetState   = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val quickSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -255,10 +267,40 @@ fun PaymentTrackerApp(
         )
     } else null
 
-    // Camera launcher (Scan Bill — capture result but no processing yet)
+    // Camera launcher (Scan Bill)
     val cameraLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.TakePicturePreview()
-    ) { /* bitmap captured; AI processing in Phase D */ }
+        ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success && cameraUri != null) {
+            isAnalyzingImage = true
+            coroutineScope.launch {
+                var parsed: codes.chirag.paymenttracker.core.utils.ParsedTransaction? = null
+                try {
+                    parsed = aiService.parseReceipt(context, cameraUri!!)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Toast.makeText(context, "AI Error: ${e.message}", Toast.LENGTH_LONG).show()
+                }
+                
+                isAnalyzingImage = false
+                if (parsed != null) {
+                    prefillTitle = parsed.title
+                    prefillAmount = if (parsed.amount > 0) parsed.amount.toString() else ""
+                    prefillType = parsed.type
+                    prefillCategory = parsed.category
+                    prefillMethod = parsed.paymentMethod
+                    prefillNotes = "Scanned from receipt"
+                    prefillKey++
+                    showAddSheet = true
+                } else {
+                    Toast.makeText(context, "Could not read receipt", Toast.LENGTH_SHORT).show()
+                    prefillTitle = ""; prefillAmount = ""; prefillNotes = ""
+                    prefillKey++
+                    showAddSheet = true
+                }
+            }
+        }
+    }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -312,7 +354,13 @@ fun PaymentTrackerApp(
                     },
                     onScanBill = {
                         fabExpanded = false
-                        cameraLauncher.launch(null)
+                        try {
+                            val uri = ImageUtils.createTempImageUri(context)
+                            cameraUri = uri
+                            cameraLauncher.launch(uri)
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Failed to open camera: ${e.message}", Toast.LENGTH_LONG).show()
+                        }
                     }
                 )
             }
@@ -352,6 +400,32 @@ fun PaymentTrackerApp(
                 showOnboarding = false
             }
         )
+
+        // ── Fullscreen Analyzing Overlay ──────────────────────────────────────
+        if (isAnalyzingImage) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {},
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    CircularProgressIndicator(color = OrangePrimary)
+                    Text(
+                        text = "Analyzing Receipt...",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = Color.White
+                    )
+                }
+            }
+        }
     }
 
     // ── QuickAdd sheet ────────────────────────────────────────────────────────
@@ -375,7 +449,8 @@ fun PaymentTrackerApp(
                     prefillKey++
                     showAddSheet = true
                 }
-            }
+            },
+            aiService = aiService
         )
     }
 

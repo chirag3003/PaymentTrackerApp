@@ -23,6 +23,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Category
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.CurrencyRupee
@@ -97,6 +99,13 @@ fun SettingsScreen(
         ?.let { runCatching { PaymentMethod.valueOf(it) }.getOrNull() }
         ?: PaymentMethod.UPI
     val nameInitial   = userName.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
+
+    // AI Configuration state
+    var activeAiModel     by remember { mutableStateOf(viewModel.getActiveAiModel()) }
+    var geminiApiKey      by remember { mutableStateOf(viewModel.getGeminiApiKey()) }
+    var anthropicApiKey   by remember { mutableStateOf(viewModel.getAnthropicApiKey()) }
+    var showGeminiKey     by remember { mutableStateOf(false) }
+    var showAnthropicKey  by remember { mutableStateOf(false) }
 
     // Toggle states — initialized from SharedPreferences via ViewModel
     var pushNotifications by remember { mutableStateOf(viewModel.getPushNotifications()) }
@@ -287,6 +296,142 @@ fun SettingsScreen(
                         }
                     }
                 )
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        // ── AI Configuration ──────────────────────────────────────────────────
+        item {
+            SettingsSectionHeader("AI Configuration")
+            SettingsSectionCard {
+                // Active Model Selector
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Text(
+                        text = "Active AI Model",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = OnSurfaceMuted
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(SurfaceL3)
+                            .padding(4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        val models = listOf("GEMINI" to "Gemini Flash", "CLAUDE" to "Claude Haiku")
+                        models.forEach { (modelId, label) ->
+                            val isSelected = activeAiModel == modelId
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(if (isSelected) OrangePrimary else SurfaceL3)
+                                    .clickable {
+                                        activeAiModel = modelId
+                                        viewModel.setActiveAiModel(modelId)
+                                    }
+                                    .padding(vertical = 10.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isSelected) OnPrimary else OnSurfaceMuted
+                                )
+                            }
+                        }
+                    }
+                }
+                
+                SettingsDivider()
+                
+                // Gemini API Key
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Gemini API Key",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = OnSurfaceMuted
+                    )
+                    OutlinedTextField(
+                        value = geminiApiKey,
+                        onValueChange = { 
+                            geminiApiKey = it
+                            viewModel.setGeminiApiKey(it.trim())
+                        },
+                        placeholder = { Text("AIzaSy...", color = OnSurfaceMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = if (showGeminiKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        trailingIcon = {
+                            androidx.compose.material3.IconButton(onClick = { showGeminiKey = !showGeminiKey }) {
+                                Icon(
+                                    imageVector = if (showGeminiKey) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                    contentDescription = null,
+                                    tint = OnSurfaceMuted
+                                )
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = OnBackground,
+                            unfocusedTextColor = OnBackground,
+                            focusedBorderColor = OrangePrimary,
+                            unfocusedBorderColor = BorderColor,
+                            focusedContainerColor = SurfaceL3,
+                            unfocusedContainerColor = SurfaceL3
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                SettingsDivider()
+
+                // Anthropic API Key
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "Anthropic API Key",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = OnSurfaceMuted
+                    )
+                    OutlinedTextField(
+                        value = anthropicApiKey,
+                        onValueChange = { 
+                            anthropicApiKey = it
+                            viewModel.setAnthropicApiKey(it.trim())
+                        },
+                        placeholder = { Text("sk-ant-...", color = OnSurfaceMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        visualTransformation = if (showAnthropicKey) androidx.compose.ui.text.input.VisualTransformation.None else androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        trailingIcon = {
+                            androidx.compose.material3.IconButton(onClick = { showAnthropicKey = !showAnthropicKey }) {
+                                Icon(
+                                    imageVector = if (showAnthropicKey) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                    contentDescription = null,
+                                    tint = OnSurfaceMuted
+                                )
+                            }
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = OnBackground,
+                            unfocusedTextColor = OnBackground,
+                            focusedBorderColor = OrangePrimary,
+                            unfocusedBorderColor = BorderColor,
+                            focusedContainerColor = SurfaceL3,
+                            unfocusedContainerColor = SurfaceL3
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
