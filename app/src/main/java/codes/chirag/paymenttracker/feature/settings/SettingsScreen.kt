@@ -66,7 +66,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.ActivityCompat
 import androidx.compose.ui.unit.dp
+import android.Manifest
 import codes.chirag.paymenttracker.BuildConfig
 import codes.chirag.paymenttracker.core.biometric.BiometricLockManager
 import codes.chirag.paymenttracker.core.model.PaymentMethod
@@ -100,6 +103,8 @@ fun SettingsScreen(
         ?: PaymentMethod.UPI
     val nameInitial   = userName.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
 
+    val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+
     // AI Configuration state
     var activeAiModel     by remember { mutableStateOf(viewModel.getActiveAiModel()) }
     var geminiApiKey      by remember { mutableStateOf(viewModel.getGeminiApiKey()) }
@@ -112,6 +117,8 @@ fun SettingsScreen(
     var billReminders     by remember { mutableStateOf(viewModel.getBillReminders()) }
     var budgetAlerts      by remember { mutableStateOf(viewModel.getBudgetAlerts()) }
     var securityLock      by remember { mutableStateOf(viewModel.getBiometricLock()) }
+
+    var showNotificationPermissionDialog by rememberSaveable { mutableStateOf(false) }
 
     // Sheet / dialog visibility
     var showEditProfileSheet  by rememberSaveable { mutableStateOf(false) }
@@ -445,6 +452,10 @@ fun SettingsScreen(
                     label          = "Push Notifications",
                     checked        = pushNotifications,
                     onCheckedChange = {
+                        if (!notificationsEnabled) {
+                            showNotificationPermissionDialog = true
+                            return@SettingRowToggle
+                        }
                         pushNotifications = it
                         viewModel.setToggle("push_notifs", it)
                     }
@@ -455,6 +466,10 @@ fun SettingsScreen(
                     label          = "Bill Reminders",
                     checked        = billReminders,
                     onCheckedChange = {
+                        if (!notificationsEnabled) {
+                            showNotificationPermissionDialog = true
+                            return@SettingRowToggle
+                        }
                         billReminders = it
                         viewModel.setToggle("bill_reminders", it)
                     }
@@ -465,6 +480,10 @@ fun SettingsScreen(
                     label          = "Budget Alerts",
                     checked        = budgetAlerts,
                     onCheckedChange = {
+                        if (!notificationsEnabled) {
+                            showNotificationPermissionDialog = true
+                            return@SettingRowToggle
+                        }
                         budgetAlerts = it
                         viewModel.setToggle("budget_alerts", it)
                     }
@@ -490,6 +509,33 @@ fun SettingsScreen(
                 )
             }
             Spacer(modifier = Modifier.height(16.dp))
+        }
+
+        if (showNotificationPermissionDialog) {
+            item {
+                AlertDialog(
+                    onDismissRequest = { showNotificationPermissionDialog = false },
+                    title = { Text("Allow Notifications") },
+                    text = { Text("To enable alerts, please allow notifications for Payment Tracker.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showNotificationPermissionDialog = false
+                            ActivityCompat.requestPermissions(
+                                (context as? android.app.Activity) ?: return@TextButton,
+                                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                                1001
+                            )
+                        }) {
+                            Text("Allow", color = OrangePrimary)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showNotificationPermissionDialog = false }) {
+                            Text("Cancel", color = OnSurfaceMuted)
+                        }
+                    }
+                )
+            }
         }
 
         // ── About ─────────────────────────────────────────────────────────────

@@ -77,7 +77,7 @@ fun PaymentTrackerNavHost(
             }
         }
 
-        homeGraph(innerPadding, navController, txRepo, profileRepo, prefsRepo)
+        homeGraph(innerPadding, navController, txRepo, profileRepo, prefsRepo, subscriptionRepo)
         transactionsGraph(innerPadding, navController, txRepo, subscriptionRepo)
         goalsGraph(innerPadding, navController, goalRepo)
         settingsGraph(innerPadding, navController, profileRepo, txRepo, prefsRepo)
@@ -92,7 +92,8 @@ private fun NavGraphBuilder.homeGraph(
     navController: NavHostController,
     txRepo: TransactionRepository,
     profileRepo: UserProfileRepository,
-    prefsRepo: PreferencesRepository
+    prefsRepo: PreferencesRepository,
+    subscriptionRepo: SubscriptionRepository
 ) {
     navigation<Route.HomeGraph>(
         startDestination = HomeRoute.Home
@@ -103,7 +104,7 @@ private fun NavGraphBuilder.homeGraph(
             }
             val homeViewModel: HomeViewModel = viewModel(
                 viewModelStoreOwner = parentEntry,
-                factory = HomeViewModel.factory(txRepo, profileRepo, prefsRepo)
+                factory = HomeViewModel.factory(txRepo, profileRepo, prefsRepo, subscriptionRepo)
             )
             HomeScreen(
                 viewModel = homeViewModel,
@@ -117,7 +118,7 @@ private fun NavGraphBuilder.homeGraph(
             }
             val homeViewModel: HomeViewModel = viewModel(
                 viewModelStoreOwner = parentEntry,
-                factory = HomeViewModel.factory(txRepo, profileRepo, prefsRepo)
+                factory = HomeViewModel.factory(txRepo, profileRepo, prefsRepo, subscriptionRepo)
             )
             InsightsScreen(
                 viewModel = homeViewModel,
@@ -272,5 +273,3 @@ private fun NavGraphBuilder.settingsGraph(
         }
     }
 }
-
-

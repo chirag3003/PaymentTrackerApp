@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import codes.chirag.paymenttracker.core.data.repository.PreferencesRepository
 import codes.chirag.paymenttracker.core.data.repository.TransactionRepository
+import codes.chirag.paymenttracker.core.data.repository.SubscriptionRepository
 import codes.chirag.paymenttracker.core.data.repository.UserProfileRepository
 import codes.chirag.paymenttracker.core.model.BalancePeriod
 import codes.chirag.paymenttracker.core.model.CategorySpending
@@ -45,7 +46,8 @@ data class HomeUiState(
 class HomeViewModel(
     txRepo: TransactionRepository,
     profileRepo: UserProfileRepository,
-    private val prefsRepo: PreferencesRepository
+    private val prefsRepo: PreferencesRepository,
+    subscriptionRepo: SubscriptionRepository
 ) : ViewModel() {
 
     // ── Public mutable state ─────────────────────────────────────────────────
@@ -57,13 +59,20 @@ class HomeViewModel(
 
     // ── UI state ─────────────────────────────────────────────────────────────
 
-    val uiState: StateFlow<HomeUiState> = combine(
+    private val txAndSubs = combine(
         txRepo.allTransactions,
+        subscriptionRepo.all
+    ) { transactions, subscriptions ->
+        transactions to subscriptions
+    }
+
+    val uiState: StateFlow<HomeUiState> = combine(
+        txAndSubs,
         profileRepo.profile,
         balancePeriod,
         _homeWeekOffset,
         _insightsWeekOffset
-    ) { transactions, profile, period, homeOffset, insightsOffset ->
+    ) { (transactions, subscriptions), profile, period, homeOffset, insightsOffset ->
         val monthlyBudget = profile?.monthlyBudget?.toDoubleOrNull() ?: 0.0
         val userName = profile?.name ?: ""
 
@@ -78,8 +87,38 @@ class HomeViewModel(
         val spentToday = transactions
             .filter { it.type == TransactionType.EXPENSE && it.date == todayLbl }
             .sumOf { it.amount }
-        val daysInMonth = 30
-        val dailyBudget = if (monthlyBudget > 0) monthlyBudget / daysInMonth else 0.0
+        val cal = Calendar.getInstance()
+        val daysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val todayOfMonth = cal.get(Calendar.DAY_OF_MONTH)
+        val remainingDays = (daysInMonth - todayOfMonth + 1).coerceAtLeast(1)
+
+        // Monthly expense so far
+        val currentMonth = cal.get(Calendar.MONTH)
+        val currentYear = cal.get(Calendar.YEAR)
+        val monthlyExpensesSoFar = transactions
+            .filter { it.type == TransactionType.EXPENSE }
+            .filter { tx ->
+                val rank = resolveDateRank(tx.date)
+                val txCal = rankToCalendar(rank) ?: return@filter false
+                txCal.get(Calendar.MONTH) == currentMonth &&
+                txCal.get(Calendar.YEAR) == currentYear
+            }
+            .sumOf { it.amount }
+
+        // Subtract future subscription expenses due later this month
+        val futureSubscriptionExpenses = subscriptions
+            .filter { it.isActive && it.type == TransactionType.EXPENSE }
+            .filter { sub ->
+                val subCal = parseDateLabel(sub.nextDueDate) ?: return@filter false
+                val isSameMonth = subCal.get(Calendar.MONTH) == currentMonth &&
+                    subCal.get(Calendar.YEAR) == currentYear
+                val isFuture = subCal.get(Calendar.DAY_OF_MONTH) > todayOfMonth
+                isSameMonth && isFuture
+            }
+            .sumOf { it.amount }
+
+        val remainingBudget = (monthlyBudget - monthlyExpensesSoFar - futureSubscriptionExpenses)
+        val dailyBudget = if (monthlyBudget > 0) remainingBudget / remainingDays else 0.0
         val safeToSpend = (dailyBudget - spentToday).coerceAtLeast(0.0)
 
         // ── Category spending (always all-time) ────────────────────────────
@@ -278,18 +317,40 @@ class HomeViewModel(
         } catch (_: Exception) { 0 }
     }
 
+    private fun parseDateLabel(label: String): Calendar? {
+        return try {
+            val parts = label.replace(",", "").split(" ")
+            if (parts.size != 3) return null
+            val months = listOf("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+            val m = months.indexOf(parts[0])
+            val d = parts[1].toInt()
+            val y = parts[2].toInt()
+            if (m == -1) return null
+            Calendar.getInstance().apply {
+                set(Calendar.YEAR, y)
+                set(Calendar.MONTH, m)
+                set(Calendar.DAY_OF_MONTH, d)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+        } catch (_: Exception) { null }
+    }
+
     // ── Factory ──────────────────────────────────────────────────────────────
 
     companion object {
         fun factory(
             txRepo: TransactionRepository,
             profileRepo: UserProfileRepository,
-            prefsRepo: PreferencesRepository
+            prefsRepo: PreferencesRepository,
+            subscriptionRepo: SubscriptionRepository
         ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    HomeViewModel(txRepo, profileRepo, prefsRepo) as T
+                    HomeViewModel(txRepo, profileRepo, prefsRepo, subscriptionRepo) as T
             }
     }
 }

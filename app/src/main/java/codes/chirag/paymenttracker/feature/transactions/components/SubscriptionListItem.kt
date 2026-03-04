@@ -1,5 +1,14 @@
 package codes.chirag.paymenttracker.feature.transactions.components
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -66,13 +75,17 @@ private fun dueDateStatus(nextDueDateLabel: String): DueStatus {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun SubscriptionListItem(
     subscription: Subscription,
+    onClick: () -> Unit,
     onToggleActive: (Subscription) -> Unit,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+    
     val meta      = getCategoryMeta(subscription.category)
     val status    = dueDateStatus(subscription.nextDueDate)
     val dueLabelColor = when (status) {
@@ -89,90 +102,112 @@ fun SubscriptionListItem(
     val amountColor = if (subscription.type == TransactionType.INCOME) IncomeGreen else ExpenseRed
     val amountPrefix = if (subscription.type == TransactionType.INCOME) "+" else "-"
 
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = { showMenu = true }
+            )
     ) {
-        // Category icon bubble
-        Box(
+        Row(
             modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(meta.color.copy(alpha = 0.15f)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Icon(
-                imageVector = meta.icon,
-                contentDescription = null,
-                tint = meta.color,
-                modifier = Modifier.size(22.dp)
-            )
-        }
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = subscription.name,
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (subscription.isActive) OnBackground else OnSurfaceMuted,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = "$duePrefix${subscription.nextDueDate} · ${subscription.frequency.label()}",
-                style = MaterialTheme.typography.labelSmall,
-                color = dueLabelColor
-            )
-        }
-
-        // Amount + period badge
-        Column(horizontalAlignment = Alignment.End) {
-            Text(
-                text = "$amountPrefix${formatCurrency(subscription.amount)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = amountColor,
-                fontWeight = FontWeight.SemiBold
-            )
+            // Category icon bubble
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(SurfaceL3)
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(meta.color.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = subscription.frequency.shortLabel(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = OnSurfaceMuted
+                Icon(
+                    imageVector = meta.icon,
+                    contentDescription = null,
+                    tint = meta.color,
+                    modifier = Modifier.size(22.dp)
                 )
             }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = subscription.name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (subscription.isActive) OnBackground else OnSurfaceMuted,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "$duePrefix${subscription.nextDueDate} · ${subscription.frequency.label()}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = dueLabelColor,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Amount + period badge
+            Column(horizontalAlignment = Alignment.End) {
+                Text(
+                    text = "$amountPrefix${formatCurrency(subscription.amount)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = amountColor,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(SurfaceL3)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = subscription.frequency.shortLabel(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OnSurfaceMuted
+                    )
+                }
+            }
         }
-
-        Spacer(modifier = Modifier.width(4.dp))
-
-        // Toggle active
-        IconButton(
-            onClick = { onToggleActive(subscription) },
-            modifier = Modifier.size(32.dp)
+        
+        DropdownMenu(
+            expanded = showMenu,
+            onDismissRequest = { showMenu = false },
+            modifier = Modifier.background(SurfaceL3)
         ) {
-            Icon(
-                imageVector = if (subscription.isActive) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
-                contentDescription = if (subscription.isActive) "Pause" else "Resume",
-                tint = OrangePrimary,
-                modifier = Modifier.size(18.dp)
+            DropdownMenuItem(
+                text = { Text(if (subscription.isActive) "Pause" else "Resume", color = OnBackground) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = if (subscription.isActive) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                        contentDescription = null,
+                        tint = OrangePrimary
+                    )
+                },
+                onClick = {
+                    showMenu = false
+                    onToggleActive(subscription)
+                }
             )
-        }
-
-        // Delete
-        IconButton(
-            onClick = { onDelete(subscription.id) },
-            modifier = Modifier.size(32.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.DeleteOutline,
-                contentDescription = "Delete",
-                tint = ExpenseRed,
-                modifier = Modifier.size(18.dp)
+            DropdownMenuItem(
+                text = { Text("Delete", color = ExpenseRed) },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Outlined.DeleteOutline,
+                        contentDescription = null,
+                        tint = ExpenseRed
+                    )
+                },
+                onClick = {
+                    showMenu = false
+                    onDelete(subscription.id)
+                }
             )
         }
     }

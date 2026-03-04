@@ -71,6 +71,9 @@ dependencies {
     implementation(libs.okhttp)
     implementation(libs.androidx.exifinterface)
 
+    // WorkManager
+    implementation(libs.androidx.work.runtime.ktx)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

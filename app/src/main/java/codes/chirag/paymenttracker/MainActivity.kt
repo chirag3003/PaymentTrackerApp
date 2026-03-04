@@ -57,6 +57,7 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -94,6 +95,12 @@ import codes.chirag.paymenttracker.core.model.PaymentMethod
 import codes.chirag.paymenttracker.core.model.Subscription
 import codes.chirag.paymenttracker.core.model.Transaction
 import codes.chirag.paymenttracker.core.model.TransactionType
+import codes.chirag.paymenttracker.core.utils.DateUtils
+import codes.chirag.paymenttracker.core.worker.SubscriptionWorker
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.ExistingPeriodicWorkPolicy
+import java.util.concurrent.TimeUnit
 import java.util.UUID
 import codes.chirag.paymenttracker.feature.transactions.TransactionViewModel
 import codes.chirag.paymenttracker.feature.transactions.components.AddTransactionBottomSheet
@@ -164,6 +171,17 @@ fun PaymentTrackerApp(
     val securePrefs = remember { SecurePreferencesRepository(context) }
     val aiService = remember { AiService(securePrefs) }
     val coroutineScope = rememberCoroutineScope()
+
+    // ── Subscription Engine (WorkManager) ─────────────────────────────────────
+    LaunchedEffect(Unit) {
+        val workRequest = PeriodicWorkRequestBuilder<SubscriptionWorker>(1, TimeUnit.DAYS)
+            .build()
+        WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+            "subscription_engine",
+            ExistingPeriodicWorkPolicy.KEEP,
+            workRequest
+        )
+    }
 
     var showOnboarding by remember {
         mutableStateOf(!prefs.getBoolean(KEY_ONBOARDING_COMPLETE, false))
@@ -465,25 +483,28 @@ fun PaymentTrackerApp(
                     }
                 },
                 onSave = { title, amountStr, type, category, paymentMethod, notes, date, recurring ->
-                    // Save transaction via scoped ViewModel if available, otherwise direct repo call
-                    if (txViewModel != null) {
-                        txViewModel.add(title, amountStr, type, category, paymentMethod, notes, date)
-                    } else {
-                        val amount = amountStr.toDoubleOrNull()
-                        if (amount != null) {
-                            coroutineScope.launch(Dispatchers.IO) {
-                                txRepo.add(
-                                    Transaction(
-                                        id            = UUID.randomUUID().toString(),
-                                        title         = title,
-                                        amount        = amount,
-                                        type          = type,
-                                        category      = category,
-                                        date          = date,
-                                        paymentMethod = paymentMethod,
-                                        notes         = notes
+                    val shouldCreateImmediateTx = recurring == null || DateUtils.isDueOrPast(recurring.nextDueDate)
+                    if (shouldCreateImmediateTx) {
+                        // Save transaction via scoped ViewModel if available, otherwise direct repo call
+                        if (txViewModel != null) {
+                            txViewModel.add(title, amountStr, type, category, paymentMethod, notes, date)
+                        } else {
+                            val amount = amountStr.toDoubleOrNull()
+                            if (amount != null) {
+                                coroutineScope.launch(Dispatchers.IO) {
+                                    txRepo.add(
+                                        Transaction(
+                                            id            = UUID.randomUUID().toString(),
+                                            title         = title,
+                                            amount        = amount,
+                                            type          = type,
+                                            category      = category,
+                                            date          = date,
+                                            paymentMethod = paymentMethod,
+                                            notes         = notes
+                                        )
                                     )
-                                )
+                                }
                             }
                         }
                     }
@@ -505,6 +526,20 @@ fun PaymentTrackerApp(
                                         isActive      = true
                                     )
                                 )
+
+                                if (shouldCreateImmediateTx) {
+                                    val autoTx = Transaction(
+                                        id            = UUID.randomUUID().toString(),
+                                        title         = title,
+                                        amount        = amount,
+                                        type          = type,
+                                        category      = category,
+                                        date          = recurring.nextDueDate,
+                                        paymentMethod = paymentMethod,
+                                        notes         = "Auto-generated from subscription"
+                                    )
+                                    txRepo.add(autoTx)
+                                }
                             }
                         }
                     }

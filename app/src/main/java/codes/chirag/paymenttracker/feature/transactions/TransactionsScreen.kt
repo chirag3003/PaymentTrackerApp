@@ -319,11 +319,19 @@ fun TransactionsScreen(
                                 .padding(48.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "No transactions found",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = OnSurfaceMuted
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "No transactions yet",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = OnSurfaceMuted
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Tap + to add your first transaction",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = OnSurfaceMuted
+                                )
+                            }
                         }
                     }
                 } else {
@@ -402,12 +410,12 @@ fun TransactionsScreen(
                                 subscriptions.forEachIndexed { index, sub ->
                                     SubscriptionListItem(
                                         subscription = sub,
-                                        onToggleActive = { subscriptionViewModel.toggleActive(it) },
-                                        onDelete = { subscriptionViewModel.delete(it) },
-                                        modifier = Modifier.clickable {
+                                        onClick = {
                                             subscriptionToEdit = sub
                                             showAddSubSheet = true
-                                        }
+                                        },
+                                        onToggleActive = { subscriptionViewModel.toggleActive(it) },
+                                        onDelete = { subscriptionViewModel.delete(it) }
                                     )
                                     if (index < subscriptions.lastIndex) {
                                         HorizontalDivider(

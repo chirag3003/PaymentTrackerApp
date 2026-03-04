@@ -134,24 +134,49 @@ fun GoalsScreen(
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Section header
-            item {
-                Text(
-                    text = "Active Goals",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = OnBackground,
-                    modifier = Modifier.padding(horizontal = 20.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+            if (goals.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(48.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "No goals yet",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = OnSurfaceMuted
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Tap + to set your first savings goal",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = OnSurfaceMuted
+                            )
+                        }
+                    }
+                }
+            } else {
+                // Section header
+                item {
+                    Text(
+                        text = "Active Goals",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = OnBackground,
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
-            items(goals, key = { it.id }) { goal ->
-                GoalCard(
-                    goal = goal,
-                    onClick = { onGoalClick(goal.id) },
-                    modifier = Modifier.padding(horizontal = 20.dp)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                items(goals, key = { it.id }) { goal ->
+                    GoalCard(
+                        goal = goal,
+                        onClick = { onGoalClick(goal.id) },
+                        modifier = Modifier.padding(horizontal = 20.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
             }
         }
     }
