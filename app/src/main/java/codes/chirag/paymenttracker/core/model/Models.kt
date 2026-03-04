@@ -157,5 +157,6 @@ data class Subscription(
     val nextDueDate: String,
     val category: String,
     val paymentMethod: PaymentMethod = PaymentMethod.CARD,
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    val lastProcessedDate: String = ""
 )

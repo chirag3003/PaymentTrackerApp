@@ -7,6 +7,7 @@ import androidx.compose.material.icons.outlined.Fastfood
 import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.LocalGroceryStore
 import androidx.compose.material.icons.outlined.LocalHospital
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Movie
 import androidx.compose.material.icons.outlined.ShoppingBag
@@ -36,6 +37,7 @@ fun getCategoryMeta(category: String): CategoryMeta = when (category.lowercase()
     "entertainment"                 -> CategoryMeta(Icons.Outlined.Movie, CategoryEntertainment)
     "groceries"                     -> CategoryMeta(Icons.Outlined.LocalGroceryStore, CategoryGroceries)
     "health", "medical"             -> CategoryMeta(Icons.Outlined.LocalHospital, CategoryHealth)
+    "living"                        -> CategoryMeta(Icons.Outlined.Home, CategoryOther)
     "fitness"                       -> CategoryMeta(Icons.Outlined.FitnessCenter, CategoryHealth)
     "education", "study"            -> CategoryMeta(Icons.AutoMirrored.Outlined.MenuBook, CategoryEducation)
     "salary", "income", "freelance" -> CategoryMeta(Icons.Outlined.Work, IncomeGreen)

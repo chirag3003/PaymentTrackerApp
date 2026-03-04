@@ -513,6 +513,7 @@ fun PaymentTrackerApp(
                         val amount = amountStr.toDoubleOrNull()
                         if (amount != null) {
                             coroutineScope.launch(Dispatchers.IO) {
+                                val lastProcessed = if (shouldCreateImmediateTx) recurring.nextDueDate else ""
                                 subscriptionRepo.add(
                                     Subscription(
                                         id            = UUID.randomUUID().toString(),
@@ -523,7 +524,8 @@ fun PaymentTrackerApp(
                                         nextDueDate   = recurring.nextDueDate,
                                         category      = category,
                                         paymentMethod = paymentMethod,
-                                        isActive      = true
+                                        isActive      = true,
+                                        lastProcessedDate = lastProcessed
                                     )
                                 )
 

@@ -56,7 +56,7 @@ import codes.chirag.paymenttracker.ui.theme.SurfaceL3
 
 private val defaultCategories = listOf(
     "Food", "Transport", "Shopping", "Entertainment",
-    "Groceries", "Subscription", "Health", "Education", "Other"
+    "Groceries", "Living", "Health", "Education", "Other"
 )
 
 @Composable

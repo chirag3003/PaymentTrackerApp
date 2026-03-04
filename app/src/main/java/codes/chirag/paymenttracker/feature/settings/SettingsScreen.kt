@@ -21,7 +21,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
@@ -66,10 +65,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import android.app.Activity
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.ActivityCompat
 import androidx.compose.ui.unit.dp
-import android.Manifest
 import codes.chirag.paymenttracker.BuildConfig
 import codes.chirag.paymenttracker.core.biometric.BiometricLockManager
 import codes.chirag.paymenttracker.core.model.PaymentMethod
@@ -103,7 +106,14 @@ fun SettingsScreen(
         ?: PaymentMethod.UPI
     val nameInitial   = userName.firstOrNull()?.uppercaseChar()?.toString() ?: "U"
 
-    val notificationsEnabled = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    var notificationsEnabled by remember {
+        mutableStateOf(NotificationManagerCompat.from(context).areNotificationsEnabled())
+    }
+    val latestContext by rememberUpdatedState(context)
+
+    LaunchedEffect(Unit) {
+        notificationsEnabled = NotificationManagerCompat.from(latestContext).areNotificationsEnabled()
+    }
 
     // AI Configuration state
     var activeAiModel     by remember { mutableStateOf(viewModel.getActiveAiModel()) }
@@ -451,13 +461,13 @@ fun SettingsScreen(
                     icon           = Icons.Outlined.Notifications,
                     label          = "Push Notifications",
                     checked        = pushNotifications,
-                    onCheckedChange = {
-                        if (!notificationsEnabled) {
+                    onCheckedChange = { checked ->
+                        if (checked && !notificationsEnabled) {
                             showNotificationPermissionDialog = true
                             return@SettingRowToggle
                         }
-                        pushNotifications = it
-                        viewModel.setToggle("push_notifs", it)
+                        pushNotifications = checked
+                        viewModel.setToggle("push_notifs", checked)
                     }
                 )
                 SettingsDivider()
@@ -465,13 +475,13 @@ fun SettingsScreen(
                     icon           = Icons.Outlined.Receipt,
                     label          = "Bill Reminders",
                     checked        = billReminders,
-                    onCheckedChange = {
-                        if (!notificationsEnabled) {
+                    onCheckedChange = { checked ->
+                        if (checked && !notificationsEnabled) {
                             showNotificationPermissionDialog = true
                             return@SettingRowToggle
                         }
-                        billReminders = it
-                        viewModel.setToggle("bill_reminders", it)
+                        billReminders = checked
+                        viewModel.setToggle("bill_reminders", checked)
                     }
                 )
                 SettingsDivider()
@@ -479,15 +489,39 @@ fun SettingsScreen(
                     icon           = Icons.Outlined.Warning,
                     label          = "Budget Alerts",
                     checked        = budgetAlerts,
-                    onCheckedChange = {
-                        if (!notificationsEnabled) {
+                    onCheckedChange = { checked ->
+                        if (checked && !notificationsEnabled) {
                             showNotificationPermissionDialog = true
                             return@SettingRowToggle
                         }
-                        budgetAlerts = it
-                        viewModel.setToggle("budget_alerts", it)
+                        budgetAlerts = checked
+                        viewModel.setToggle("budget_alerts", checked)
                     }
                 )
+            }
+            if (!notificationsEnabled) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(OrangeSubtle)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Warning,
+                        contentDescription = null,
+                        tint = OrangePrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = "Notifications disabled",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = OrangePrimary
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -516,17 +550,17 @@ fun SettingsScreen(
                 AlertDialog(
                     onDismissRequest = { showNotificationPermissionDialog = false },
                     title = { Text("Allow Notifications") },
-                    text = { Text("To enable alerts, please allow notifications for Payment Tracker.") },
+                    text = { Text("Notifications are currently disabled. Enable them in system settings to receive alerts.") },
                     confirmButton = {
                         TextButton(onClick = {
                             showNotificationPermissionDialog = false
-                            ActivityCompat.requestPermissions(
-                                (context as? android.app.Activity) ?: return@TextButton,
-                                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                                1001
-                            )
+                            val activity = context as? Activity ?: return@TextButton
+                            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                                putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
+                            }
+                            activity.startActivity(intent)
                         }) {
-                            Text("Allow", color = OrangePrimary)
+                            Text("Open Settings", color = OrangePrimary)
                         }
                     },
                     dismissButton = {
@@ -546,12 +580,6 @@ fun SettingsScreen(
                     icon    = Icons.Outlined.Info,
                     label   = "App Version",
                     value   = BuildConfig.VERSION_NAME,
-                    onClick = {}
-                )
-                SettingsDivider()
-                SettingRowNavigation(
-                    icon    = Icons.Outlined.AccountCircle,
-                    label   = "Privacy Policy",
                     onClick = {}
                 )
             }

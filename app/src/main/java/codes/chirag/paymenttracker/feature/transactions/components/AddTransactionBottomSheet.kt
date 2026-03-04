@@ -75,7 +75,7 @@ import java.util.Calendar
 
 private val categories = listOf(
     "Food", "Transport", "Shopping", "Entertainment",
-    "Groceries", "Health", "Education", "Other"
+    "Groceries", "Living", "Health", "Education", "Other"
 )
 
 private val daysOfWeek = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")

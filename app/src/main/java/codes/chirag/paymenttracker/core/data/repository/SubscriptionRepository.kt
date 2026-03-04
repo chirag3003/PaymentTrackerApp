@@ -38,7 +38,8 @@ private fun SubscriptionEntity.toDomain() = Subscription(
     nextDueDate   = nextDueDate,
     category      = category,
     paymentMethod = runCatching { PaymentMethod.valueOf(paymentMethod) }.getOrDefault(PaymentMethod.UPI),
-    isActive      = isActive
+    isActive      = isActive,
+    lastProcessedDate = lastProcessedDate
 )
 
 private fun Subscription.toEntity() = SubscriptionEntity(
@@ -50,5 +51,6 @@ private fun Subscription.toEntity() = SubscriptionEntity(
     nextDueDate   = nextDueDate,
     category      = category,
     paymentMethod = paymentMethod.name,
-    isActive      = isActive
+    isActive      = isActive,
+    lastProcessedDate = lastProcessedDate
 )

@@ -91,7 +91,7 @@ import java.util.Calendar
 // All known categories across the app
 private val knownCategories = listOf(
     "Food", "Dining", "Transport", "Shopping", "Entertainment",
-    "Groceries", "Health", "Fitness", "Education",
+    "Groceries", "Living", "Health", "Fitness", "Education",
     "Income", "Freelance", "Other"
 )
 
@@ -454,7 +454,8 @@ fun TransactionsScreen(
                         nextDueDate = nextDueDate,
                         category = category,
                         paymentMethod = paymentMethod,
-                        isActive = editSub.isActive
+                        isActive = editSub.isActive,
+                        lastProcessedDate = editSub.lastProcessedDate
                     )
                 } else {
                     subscriptionViewModel.add(name, amount, type, frequency, nextDueDate, category, paymentMethod)

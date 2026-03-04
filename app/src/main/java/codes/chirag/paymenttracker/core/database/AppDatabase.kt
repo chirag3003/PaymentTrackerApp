@@ -15,7 +15,7 @@ import codes.chirag.paymenttracker.core.database.entities.UserProfileEntity
 
 @Database(
     entities = [TransactionEntity::class, GoalEntity::class, UserProfileEntity::class, SubscriptionEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -41,4 +41,3 @@ abstract class AppDatabase : RoomDatabase() {
             }
     }
 }
-

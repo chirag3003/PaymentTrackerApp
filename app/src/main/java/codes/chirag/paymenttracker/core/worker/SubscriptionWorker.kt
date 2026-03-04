@@ -33,7 +33,7 @@ class SubscriptionWorker(
             for (sub in subscriptions) {
                 if (!sub.isActive) continue
 
-                if (DateUtils.isDueOrPast(sub.nextDueDate)) {
+                if (DateUtils.isDueOrPast(sub.nextDueDate) && sub.lastProcessedDate != todayLabel) {
                     // Create transaction for this subscription
                     val newTransaction = Transaction(
                         id = UUID.randomUUID().toString(),
@@ -52,7 +52,10 @@ class SubscriptionWorker(
                     while (DateUtils.isDueOrPast(newDueDate)) {
                         newDueDate = DateUtils.calculateNextDueDate(newDueDate, sub.frequency)
                     }
-                    val updatedSub = sub.copy(nextDueDate = newDueDate)
+                    val updatedSub = sub.copy(
+                        nextDueDate = newDueDate,
+                        lastProcessedDate = todayLabel
+                    )
                     subscriptionRepo.update(updatedSub)
 
                     // Notify user

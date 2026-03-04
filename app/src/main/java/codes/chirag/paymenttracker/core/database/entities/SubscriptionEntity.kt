@@ -13,5 +13,6 @@ data class SubscriptionEntity(
     val nextDueDate: String,     // Display string e.g. "Mar 10, 2026"
     val category: String,
     val paymentMethod: String,   // PaymentMethod.name
-    val isActive: Boolean
+    val isActive: Boolean,
+    val lastProcessedDate: String // "MMM d, yyyy" when last auto-processed
 )

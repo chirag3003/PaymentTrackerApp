@@ -43,7 +43,8 @@ class SubscriptionViewModel(
                     nextDueDate   = nextDueDate.ifBlank { nextMonthLabel() },
                     category      = category,
                     paymentMethod = paymentMethod,
-                    isActive      = true
+                    isActive      = true,
+                    lastProcessedDate = ""
                 )
             )
         }
@@ -58,7 +59,8 @@ class SubscriptionViewModel(
         nextDueDate: String,
         category: String,
         paymentMethod: PaymentMethod,
-        isActive: Boolean
+        isActive: Boolean,
+        lastProcessedDate: String
     ) {
         val amt = amount.toDoubleOrNull() ?: return
         viewModelScope.launch {
@@ -72,7 +74,8 @@ class SubscriptionViewModel(
                     nextDueDate   = nextDueDate.ifBlank { nextMonthLabel() },
                     category      = category,
                     paymentMethod = paymentMethod,
-                    isActive      = isActive
+                    isActive      = isActive,
+                    lastProcessedDate = lastProcessedDate
                 )
             )
         }
