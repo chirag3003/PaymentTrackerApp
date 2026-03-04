@@ -72,6 +72,10 @@ fun HomeScreen(
                 safeToSpend = state.safeToSpend,
                 dailyBudget = state.dailyBudget,
                 spentToday  = state.spentToday,
+                remainingBudget = state.remainingBudget,
+                remainingDays = state.remainingDays,
+                upcomingSubscriptionsTotal = state.upcomingSubscriptionsTotal,
+                upcomingSubscriptions = state.upcomingSubscriptions,
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
         }

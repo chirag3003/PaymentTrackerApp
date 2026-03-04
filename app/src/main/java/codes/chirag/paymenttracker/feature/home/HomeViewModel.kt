@@ -30,6 +30,10 @@ data class HomeUiState(
     val safeToSpend: Double = 0.0,
     val dailyBudget: Double = 0.0,
     val spentToday: Double = 0.0,
+    val remainingBudget: Double = 0.0,
+    val remainingDays: Int = 0,
+    val upcomingSubscriptionsTotal: Double = 0.0,
+    val upcomingSubscriptions: List<codes.chirag.paymenttracker.core.model.Subscription> = emptyList(),
     // Home bar chart
     val weeklySpending: List<WeeklyBarData> = emptyList(),
     val homeWeekLabel: String = "",
@@ -106,7 +110,7 @@ class HomeViewModel(
             .sumOf { it.amount }
 
         // Subtract future subscription expenses due later this month
-        val futureSubscriptionExpenses = subscriptions
+        val futureSubscriptions = subscriptions
             .filter { it.isActive && it.type == TransactionType.EXPENSE }
             .filter { sub ->
                 val subCal = parseDateLabel(sub.nextDueDate) ?: return@filter false
@@ -115,7 +119,9 @@ class HomeViewModel(
                 val isFuture = subCal.get(Calendar.DAY_OF_MONTH) > todayOfMonth
                 isSameMonth && isFuture
             }
-            .sumOf { it.amount }
+            .sortedBy { sub -> parseDateLabel(sub.nextDueDate)?.timeInMillis ?: Long.MAX_VALUE }
+
+        val futureSubscriptionExpenses = futureSubscriptions.sumOf { it.amount }
 
         val remainingBudget = (monthlyBudget - monthlyExpensesSoFar - futureSubscriptionExpenses)
         val dailyBudget = if (monthlyBudget > 0) remainingBudget / remainingDays else 0.0
@@ -149,6 +155,10 @@ class HomeViewModel(
             safeToSpend           = safeToSpend,
             dailyBudget           = dailyBudget,
             spentToday            = spentToday,
+            remainingBudget        = remainingBudget,
+            remainingDays          = remainingDays,
+            upcomingSubscriptionsTotal  = futureSubscriptionExpenses,
+            upcomingSubscriptions  = futureSubscriptions,
             weeklySpending        = homeWeekData,
             homeWeekLabel         = homeWeekLabel,
             homeWeekOffset        = homeOffset,

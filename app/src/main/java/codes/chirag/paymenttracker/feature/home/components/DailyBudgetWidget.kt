@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.unit.dp
+import codes.chirag.paymenttracker.core.model.Subscription
 import codes.chirag.paymenttracker.core.utils.formatCurrency
 import codes.chirag.paymenttracker.ui.theme.DividerColor
 import codes.chirag.paymenttracker.ui.theme.ExpenseRed
@@ -38,6 +39,10 @@ fun DailyBudgetWidget(
     safeToSpend: Double,
     dailyBudget: Double,
     spentToday: Double,
+    remainingBudget: Double,
+    remainingDays: Int,
+    upcomingSubscriptionsTotal: Double,
+    upcomingSubscriptions: List<Subscription>,
     modifier: Modifier = Modifier
 ) {
     val progress = if (dailyBudget > 0) (spentToday / dailyBudget).toFloat().coerceIn(0f, 1f) else 0f
@@ -108,11 +113,62 @@ fun DailyBudgetWidget(
                     style = MaterialTheme.typography.labelSmall,
                     color = OnSurfaceMuted
                 )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Text(
-                    text = "Budget ${formatCurrency(dailyBudget)}",
+                    text = "Remaining ${formatCurrency(remainingBudget)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = OnSurfaceMuted
                 )
+                Text(
+                    text = "$remainingDays days left",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceMuted
+                )
+            }
+            if (upcomingSubscriptionsTotal > 0) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = "Includes upcoming subscriptions: ${formatCurrency(upcomingSubscriptionsTotal)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = OnSurfaceMuted
+                )
+            }
+
+            if (upcomingSubscriptions.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(10.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    upcomingSubscriptions.take(3).forEach { sub ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${sub.name} · ${sub.nextDueDate}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = OnSurfaceMuted,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = formatCurrency(sub.amount),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = OnSurfaceMuted
+                            )
+                        }
+                    }
+                    if (upcomingSubscriptions.size > 3) {
+                        Text(
+                            text = "+${upcomingSubscriptions.size - 3} more",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = OnSurfaceMuted
+                        )
+                    }
+                }
             }
         }
     }
