@@ -69,7 +69,7 @@ class AiService(
     // ── Gemini Implementations ───────────────────────────────────────────────────
 
     private fun parseWithGeminiText(apiKey: String, text: String): ParsedTransaction? {
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}"
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}"
         
         val jsonPayload = JSONObject().apply {
             put("systemInstruction", JSONObject().apply {
@@ -98,7 +98,7 @@ class AiService(
     }
 
     private fun parseWithGeminiVision(apiKey: String, base64Image: String): ParsedTransaction? {
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}"
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${apiKey}"
         
         val jsonPayload = JSONObject().apply {
             put("systemInstruction", JSONObject().apply {
@@ -151,7 +151,7 @@ class AiService(
         val url = "https://api.anthropic.com/v1/messages"
         
         val jsonPayload = JSONObject().apply {
-            put("model", "claude-3-haiku-20240307")
+            put("model", "claude-haiku-4-5")
             put("max_tokens", 1024)
             put("system", systemPrompt)
             put("messages", org.json.JSONArray().apply {
@@ -176,7 +176,7 @@ class AiService(
         val url = "https://api.anthropic.com/v1/messages"
         
         val jsonPayload = JSONObject().apply {
-            put("model", "claude-3-haiku-20240307")
+            put("model", "claude-haiku-4-5")
             put("max_tokens", 1024)
             put("system", systemPrompt)
             put("messages", org.json.JSONArray().apply {

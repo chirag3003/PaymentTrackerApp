@@ -248,8 +248,8 @@ fun QuickAddBottomSheet(
                             try {
                                 parsed = aiService.parseText(inputText)
                             } catch (e: Exception) {
-                                e.printStackTrace()
-                                Toast.makeText(context, "AI Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                android.util.Log.e("AiService", "AI Error in QuickAdd", e)
+                                Toast.makeText(context, "AI failed, check logs. Using basic parser", Toast.LENGTH_SHORT).show()
                             }
                             
                             if (parsed == null) {

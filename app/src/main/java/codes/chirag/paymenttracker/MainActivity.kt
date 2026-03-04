@@ -278,8 +278,8 @@ fun PaymentTrackerApp(
                 try {
                     parsed = aiService.parseReceipt(context, cameraUri!!)
                 } catch (e: Exception) {
-                    e.printStackTrace()
-                    Toast.makeText(context, "AI Error: ${e.message}", Toast.LENGTH_LONG).show()
+                    android.util.Log.e("AiService", "AI Error in Scan Bill", e)
+                    Toast.makeText(context, "AI failed, check logs", Toast.LENGTH_SHORT).show()
                 }
                 
                 isAnalyzingImage = false
